@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: gesture-game-platform
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # IMPORTANT: exactly one worker. Game state (score, board, high scores,
+    # gesture tracker) lives in this process's memory only, not in a shared
+    # database, so a second worker would silently run its own separate game
+    # and requests would bounce between two different game states.
+    #
+    # IMPORTANT: --worker-class gthread. Without it, gunicorn's default
+    # "sync" worker ignores --threads entirely and handles exactly ONE
+    # request at a time. /video_feed holds a connection open forever (it's
+    # an infinite MJPEG stream), which would then block every other
+    # request - including every webcam frame POST - for as long as the
+    # video stream stays open. gthread is what actually gives you
+    # concurrent request handling.
+    startCommand: gunicorn app:app --worker-class gthread --workers 1 --threads 12 --timeout 120 --bind 0.0.0.0:$PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9

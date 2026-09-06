@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesturo — AI Gesture Gaming Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #07090e;
+            --bg-card: rgba(15, 23, 42, 0.72);
+            --bg-card-hover: rgba(30, 41, 59, 0.85);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --border-glow: rgba(99, 102, 241, 0.35);
+            
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.4);
+            --cyan: #06b6d4;
+            --cyan-glow: rgba(6, 182, 212, 0.35);
+            --emerald: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.35);
+            --amber: #f59e0b;
+            --amber-glow: rgba(245, 158, 11, 0.35);
+            --rose: #f43f5e;
+            --rose-glow: rgba(244, 63, 94, 0.35);
+            
+            --radius-lg: 20px;
+            --radius-md: 14px;
+            --radius-sm: 10px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.18) 0%, transparent 50%),
+                radial-gradient(circle at 10% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 40%),
+                radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 28px 28px;
+            color: var(--text-main);
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 16px 40px;
+        }
+
+        /* Top Bar / Header */
+        header {
+            width: 100%;
+            max-width: 1160px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 4px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .brand-cluster {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .brand-text h1 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-tag {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            color: #a5b4fc;
+        }
+
+        .header-pills {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tech-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-glass);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            backdrop-filter: blur(10px);
+        }
+
+        .tech-badge span.dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--emerald);
+            box-shadow: 0 0 10px var(--emerald);
+            animation: pulse-dot 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.85); }
+        }
+
+        /* Main Workspace Layout */
+        .workspace {
+            width: 100%;
+            max-width: 1160px;
+            display: grid;
+            grid-template-columns: minmax(0, 520px) 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 960px) {
+            .workspace {
+                grid-template-columns: 1fr;
+                max-width: 540px;
+            }
+        }
+
+        /* Left Side: Arcade Stage */
+        .stage-column {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* Mode Switcher Tabs */
+        .mode-bar {
+            display: flex;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-glass);
+            padding: 5px;
+            border-radius: 16px;
+            gap: 6px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(16px);
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px 14px;
+            font-size: 14px;
+            font-weight: 700;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background: transparent;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .mode-btn:hover:not(.active) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .mode-btn.active {
+            background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
+
+        /* Game Screen Viewport */
+        .screen-enclosure {
+            position: relative;
+            background: #000000;
+            border-radius: 22px;
+            padding: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 
+                0 20px 40px -10px rgba(0, 0, 0, 0.8),
+                0 0 35px rgba(99, 102, 241, 0.15);
+            overflow: hidden;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .screen-enclosure.tracking-active {
+            border-color: rgba(16, 185, 129, 0.4);
+            box-shadow: 
+                0 20px 40px -10px rgba(0, 0, 0, 0.8),
+                0 0 35px rgba(16, 185, 129, 0.22);
+        }
+
+        .screen-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 14px 6px;
+            background: #090e1a;
+            border-radius: 16px 16px 0 0;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .screen-header .live-feed {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #38bdf8;
+        }
+
+        .screen-header .feed-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #38bdf8;
+            box-shadow: 0 0 8px #38bdf8;
+        }
+
+        .screen-canvas-wrap {
+            position: relative;
+            width: 100%;
+            background: #0a0d16;
+            aspect-ratio: 2 / 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .screen-canvas-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        /* In-Screen Gesture Reaction Banner */
+        .live-gesture-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: #090e1a;
+            border-radius: 0 0 16px 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .banner-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-dim);
+        }
+
+        .gesture-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 14px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            transition: all 0.15s ease;
+        }
+
+        .gesture-pill.action-jump {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border-color: rgba(16, 185, 129, 0.4);
+            box-shadow: 0 0 14px rgba(16, 185, 129, 0.3);
+            animation: bounce-pill 0.4s ease;
+        }
+
+        .gesture-pill.action-stop {
+            background: rgba(244, 63, 94, 0.2);
+            color: #fb7185;
+            border-color: rgba(244, 63, 94, 0.4);
+            box-shadow: 0 0 14px rgba(244, 63, 94, 0.3);
+        }
+
+        .gesture-pill.action-steer {
+            background: rgba(6, 182, 212, 0.2);
+            color: #38bdf8;
+            border-color: rgba(6, 182, 212, 0.4);
+        }
+
+        @keyframes bounce-pill {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
+
+        /* Quick Action Primary Controls */
+        .controls-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 13px 18px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            border-radius: var(--radius-md);
+            border: 1px solid transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-action:active {
+            transform: scale(0.97);
+        }
+
+        .btn-play {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            color: #ffffff;
+            box-shadow: 0 6px 20px var(--emerald-glow);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-play:hover {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            box-shadow: 0 8px 24px rgba(16, 185, 129, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-restart {
+            background: rgba(30, 41, 59, 0.85);
+            color: #f1f5f9;
+            border: 1px solid var(--border-glass);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+        }
+
+        .btn-restart:hover {
+            background: rgba(51, 65, 85, 0.95);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Right Side: Command Deck */
+        .deck-column {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 18px 20px;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(16px);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Telemetry & Lane Visualizer */
+        .telemetry-box {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .camera-status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: var(--radius-md);
+            font-size: 13px;
+        }
+
+        .detection-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: rgba(244, 63, 94, 0.15);
+            color: #fb7185;
+            border: 1px solid rgba(244, 63, 94, 0.3);
+        }
+
+        .detection-badge.active {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        /* 3-Lane Track Gauge */
+        .lane-gauge-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .gauge-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            padding: 0 4px;
+        }
+
+        .lane-tracks {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+
+        .lane-segment {
+            padding: 10px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 800;
+            border-radius: var(--radius-sm);
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-dim);
+            transition: all 0.15s ease;
+        }
+
+        .lane-segment.active {
+            background: rgba(6, 182, 212, 0.2);
+            color: #38bdf8;
+            border-color: rgba(6, 182, 212, 0.5);
+            box-shadow: 0 0 16px var(--cyan-glow);
+            transform: translateY(-2px);
+        }
+
+        /* Stats Grid */
+        .stats-quad {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .metric-cell {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-cell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: var(--primary);
+            opacity: 0.8;
+        }
+
+        .metric-cell.green::before { background: var(--emerald); }
+        .metric-cell.cyan::before { background: var(--cyan); }
+        .metric-cell.gold::before { background: var(--amber); }
+
+        .metric-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            color: var(--text-dim);
+        }
+
+        .metric-value {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.1;
+        }
+
+        .metric-value.green { color: #34d399; }
+        .metric-value.cyan { color: #38bdf8; }
+        .metric-value.gold { color: #fbbf24; }
+
+        /* Hardware / Display Toolbar */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .btn-tool {
+            padding: 10px 8px;
+            font-size: 12px;
+            font-weight: 700;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.35);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-align: center;
+        }
+
+        .btn-tool:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-tool.active-tool {
+            background: rgba(99, 102, 241, 0.2);
+            color: #c7d2fe;
+            border-color: rgba(99, 102, 241, 0.4);
+        }
+
+        /* Gesture Instruction List */
+        .guide-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .guide-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 12px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: var(--radius-sm);
+        }
+
+        .guide-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .action-tag {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tag-blue { background: rgba(56, 189, 248, 0.18); color: #7dd3fc; }
+        .tag-green { background: rgba(52, 211, 153, 0.18); color: #6ee7b7; }
+        .tag-amber { background: rgba(251, 191, 36, 0.18); color: #fde68a; }
+        .tag-red { background: rgba(251, 113, 133, 0.18); color: #fecdd3; }
+
+        /* Keyboard Fallback Legend */
+        .keys-legend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        .kbd {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--text-main);
+            font-family: monospace;
+            font-size: 11px;
+            box-shadow: 0 2px 0 rgba(0,0,0,0.5);
+        }
+
+        /* Toast notification */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--border-glow);
+            color: #ffffff;
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(12px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 1000;
+        }
+
+        #toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header / Brand Bar -->
+    <header>
+        <div class="brand-cluster">
+            <div class="logo-icon">🖐️</div>
+            <div class="brand-text">
+                <h1>Gesturo <span class="brand-tag">v3.1 Pro</span></h1>
+            </div>
+        </div>
+
+        <div class="header-pills">
+            <div class="tech-badge">
+                <span class="dot" id="live-indicator"></span>
+                <span id="cam-status-pill">Webcam Active • 30 FPS</span>
+            </div>
+            <div class="tech-badge" style="border-color: rgba(99, 102, 241, 0.25);">
+                <span>⚡ MediaPipe ML</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="workspace">
+
+        <!-- Left Stage: Game Viewport & Controls -->
+        <div class="stage-column">
+
+            <!-- Mode Selector Bar -->
+            <div class="mode-bar">
+                <button type="button" class="mode-btn {{ 'active' if mode == 'runner' else '' }}" id="mode-runner-btn" onclick="switchMode('runner')">
+                    🏃 Road Runner
+                </button>
+                <button type="button" class="mode-btn {{ 'active' if mode == 'block_blast' else '' }}" id="mode-block-btn" onclick="switchMode('block_blast')">
+                    🧩 Block Blast
+                </button>
+            </div>
+
+            <!-- Arcade Screen Viewport -->
+            <div class="screen-enclosure" id="screen-box">
+                <div class="screen-header">
+                    <div class="live-feed">
+                        <span class="feed-dot"></span>
+                        <span id="screen-mode-title">{{ 'Road Runner • Highway 1' if mode == 'runner' else 'Block Blast • Grid 8x8' }}</span>
+                    </div>
+                    <div>Headless Stream • 480x720</div>
+                </div>
+
+                <div class="screen-canvas-wrap">
+                    <img id="game-stream" src="{{ url_for('video_feed') }}" alt="Gesturo Video Stream">
+                </div>
+
+                <!-- Real-Time Gesture Action Banner -->
+                <div class="live-gesture-banner">
+                    <span class="banner-label">Gesture Feedback</span>
+                    <span class="gesture-pill" id="hud-gesture-action">
+                        <span>🔍 Initializing hand tracker...</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Primary Play / Restart Actions (Zero Page Reload) -->
+            <div class="controls-row">
+                <button type="button" class="btn-action btn-play" id="btn-start" onclick="sendAction('start')">
+                    <span>▶</span> Play Game
+                </button>
+                <button type="button" class="btn-action btn-restart" id="btn-restart" onclick="sendAction('restart')">
+                    <span>🔄</span> Restart
+                </button>
+            </div>
+
+            <!-- Keyboard Fallback Hint -->
+            <div class="keys-legend">
+                <span>Keyboard Fallback:</span>
+                <span class="kbd">←</span> <span class="kbd">→</span> Steer &bull;
+                <span class="kbd">Space</span> / <span class="kbd">↑</span> Jump &bull;
+                <span class="kbd">P</span> Pause
+            </div>
+        </div>
+
+        <!-- Right Side: Cyber Command Deck -->
+        <div class="deck-column">
+
+            <!-- Telemetry & Hand Tracking Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">📡 Vision &amp; Hand Telemetry</span>
+                    <span class="detection-badge" id="hud-detection-badge">Searching...</span>
+                </div>
+
+                <div class="telemetry-box">
+                    <div class="camera-status-row">
+                        <span style="color:var(--text-muted);">Webcam Pipeline</span>
+                        <strong id="cam-status-detail" style="color:#38bdf8;">Connecting...</strong>
+                    </div>
+
+                    <!-- Steering / Lane Position Gauge -->
+                    <div class="lane-gauge-container">
+                        <div class="gauge-labels">
+                            <span>Left Lane</span>
+                            <span>Center</span>
+                            <span>Right Lane</span>
+                        </div>
+                        <div class="lane-tracks">
+                            <div class="lane-segment" id="lane-0">👈 Left</div>
+                            <div class="lane-segment active" id="lane-1">🟢 Center</div>
+                            <div class="lane-segment" id="lane-2">👉 Right</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Quad Grid -->
+            <div class="stats-quad">
+                <div class="metric-cell green">
+                    <span class="metric-label">Game State</span>
+                    <span class="metric-value green" id="stat-state">{{ state.upper() }}</span>
+                </div>
+                <div class="metric-cell cyan">
+                    <span class="metric-label">Live Score</span>
+                    <span class="metric-value cyan" id="stat-score">{{ score }}</span>
+                </div>
+                <div class="metric-cell gold">
+                    <span class="metric-label">Best Record</span>
+                    <span class="metric-value gold" id="stat-high-score">{{ high_score }}</span>
+                </div>
+                <div class="metric-cell">
+                    <span class="metric-label" id="stat-detail-label">{{ 'Distance' if mode == 'runner' else 'Combo Streak' }}</span>
+                    <span class="metric-value" id="stat-detail">
+                        {% if mode == 'runner' %}
+                        {{ details.distance_m | default(0) }}m
+                        {% else %}
+                        {{ details.combo_streak | default(0) }}x
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Quick Vision & Camera Toolbar -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">⚙️ Camera &amp; Calibration Tools</span>
+                </div>
+                <div class="tools-grid">
+                    <button type="button" class="btn-tool {{ 'active-tool' if show_camera_pip else '' }}" id="btn-toggle-pip" onclick="toggleOption('toggle_pip')">
+                        📷 Preview PiP
+                    </button>
+                    <button type="button" class="btn-tool {{ 'active-tool' if camera_mirror else '' }}" id="btn-toggle-mirror" onclick="toggleOption('toggle_mirror')">
+                        🪞 Mirror Mode
+                    </button>
+                    <button type="button" class="btn-tool" id="btn-calibrate" onclick="startCalibration()">
+                        🎯 Calibrate
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dynamic Gestures Guide Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title" id="guide-title">
+                        📖 {{ 'Road Runner Gestures' if mode == 'runner' else 'Block Blast Gestures' }}
+                    </span>
+                </div>
+
+                <div class="guide-items" id="guide-content">
+                    {% if mode == 'runner' %}
+                    <div class="guide-row">
+                        <div class="guide-left">
+                            <span>👈 Hand to the Left</span>
+                        </div>
+                        <span class="action-tag tag-blue">Steer Left</span>
+                    </div>
+                    <div class="guide-row">
+                        <div class="guide-left">
+                            <span>👉 Hand to the Right</span>
+                        </div>
+                        <span class="action-tag tag-blue">Steer Right</span>
+                    </div>
+                    <div class="guide-row">
+                        <div class="guide-left">
+                            <span>✊ Fist then 🖐 Open Hand</span>
+                        </div>
+                        <span class="action-tag tag-green">BOY JUMPS!</span>
+                    </div>
+                    <div class="guide-row">
+                        <div class="guide-left">
+                            <span>✊ Hold Closed Fist</span>
+                        </div>
+                        <span class="action-tag tag-red">PAUSE GAME</span>
+                    </div>
+                    {% else %}
+                    <div class="guide-row">
+                        <div class="guide-left">
+                            <span>✋ Move Hand in Air</span>
+                        </div>
+                        <span class="action-tag tag-blue">Aim 2D Cursor</span>
+                    </div>
+                    <div class="guide-row">
+                        <div class="guide-left">
+                            <span>🤏 Pinch OR ✊ Fist</span>
+                        </div>
+                        <span class="action-tag tag-green">Grab Piece</span>
+                    </div>
+                    <div class="guide-row">
+                        <div class="guide-left">
+                            <span>🖐 Open Palm over Grid</span>
+                        </div>
+                        <span class="action-tag tag-amber">Place Piece</span>
+                    </div>
+                    <div class="guide-row">
+                        <div class="guide-left">
+                            <span>⚡ Clear Rows / Columns</span>
+                        </div>
+                        <span class="action-tag tag-green">Combo Multiplier</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Hidden webcam capture pipeline: browser reads webcam and streams frames to backend -->
+    <video id="webcam-video" autoplay playsinline muted style="display:none;"></video>
+    <canvas id="webcam-canvas" style="display:none;"></canvas>
+
+    <!-- Toast Notification -->
+    <div id="toast">Ready</div>
+
+    <script>
+        // High-Responsiveness Capture Pipeline
+        (function () {
+            var video = document.getElementById('webcam-video');
+            var canvas = document.getElementById('webcam-canvas');
+            var ctx = canvas.getContext('2d');
+
+            var CAPTURE_W = {{ inference_width }};
+            var CAPTURE_H = {{ inference_height }};
+            canvas.width = CAPTURE_W;
+            canvas.height = CAPTURE_H;
+
+            // Ultra-responsive upload rate: 33ms (~30 FPS)
+            var SEND_INTERVAL_MS = 33;
+            var sending = false;
+            var camActive = false;
+
+            function setCamStatus(text, ok) {
+                var pill = document.getElementById('cam-status-pill');
+                var detail = document.getElementById('cam-status-detail');
+                var dot = document.getElementById('live-indicator');
+                if (pill) pill.textContent = text;
+                if (detail) detail.textContent = text;
+                if (dot) dot.style.background = ok ? 'var(--emerald)' : 'var(--rose)';
+            }
+
+            function sendFrame() {
+                if (sending || video.readyState < 2) return;
+                sending = true;
+                ctx.drawImage(video, 0, 0, CAPTURE_W, CAPTURE_H);
+                canvas.toBlob(function (blob) {
+                    if (!blob) { sending = false; return; }
+                    fetch('/process_frame', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'image/jpeg' },
+                        body: blob,
+                    })
+                    .catch(function () { /* drop silently */ })
+                    .finally(function () { sending = false; });
+                }, 'image/jpeg', 0.55);
+            }
+
+            function startCapture() {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    setCamStatus('Webcam not supported', false);
+                    return;
+                }
+                navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: CAPTURE_W }, height: { ideal: CAPTURE_H }, frameRate: { ideal: 30 } },
+                    audio: false,
+                }).then(function (stream) {
+                    video.srcObject = stream;
+                    camActive = true;
+                    setCamStatus('Webcam Stream Active (30 FPS)', true);
+                    setInterval(sendFrame, SEND_INTERVAL_MS);
+                }).catch(function (err) {
+                    setCamStatus('Webcam Access Blocked', false);
+                });
+            }
+
+            startCapture();
+        })();
+
+        // Toast Helper
+        function showToast(msg) {
+            var el = document.getElementById('toast');
+            if (!el) return;
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(function() { el.classList.remove('show'); }, 2200);
+        }
+
+        // Fast Asynchronous Action Sender (No Page Reloads!)
+        function sendAction(actionName) {
+            fetch('/api/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: actionName })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (actionName === 'start') showToast('🎮 Game Started!');
+                else if (actionName === 'restart') showToast('🔄 Game Restarted!');
+                updateStats();
+            })
+            .catch(function() {});
+        }
+
+        // Toggle Settings Tool
+        function toggleOption(endpoint) {
+            fetch('/' + endpoint, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (endpoint === 'toggle_pip') {
+                    var btn = document.getElementById('btn-toggle-pip');
+                    if (btn && data.show_camera_pip !== undefined) {
+                        btn.classList.toggle('active-tool', data.show_camera_pip);
+                    }
+                    showToast(data.show_camera_pip ? '📷 Camera Preview ON' : '📷 Camera Preview OFF');
+                } else if (endpoint === 'toggle_mirror') {
+                    var btn = document.getElementById('btn-toggle-mirror');
+                    if (btn && data.camera_mirror !== undefined) {
+                        btn.classList.toggle('active-tool', data.camera_mirror);
+                    }
+                    showToast(data.camera_mirror ? '🪞 Mirror Mode ON' : '🪞 Mirror Mode OFF');
+                }
+            })
+            .catch(function() {});
+        }
+
+        // Calibration action
+        function startCalibration() {
+            var btn = document.getElementById('btn-calibrate');
+            if (btn) btn.textContent = '🎯 Calibrating...';
+            fetch('/calibrate', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(function() {
+                showToast('🎯 Neutral hand calibrated!');
+                setTimeout(function() {
+                    if (btn) btn.textContent = '🎯 Calibrate';
+                }, 1600);
+            })
+            .catch(function() {});
+        }
+
+        // Mode Switcher with Dynamic Guide Updates
+        function switchMode(newMode) {
+            fetch('/select_mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ mode: newMode })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                var runnerBtn = document.getElementById('mode-runner-btn');
+                var blockBtn = document.getElementById('mode-block-btn');
+                var screenTitle = document.getElementById('screen-mode-title');
+                var guideTitle = document.getElementById('guide-title');
+                var guideContent = document.getElementById('guide-content');
+                var detailLabel = document.getElementById('stat-detail-label');
+
+                if (newMode === 'runner') {
+                    if (runnerBtn) runnerBtn.classList.add('active');
+                    if (blockBtn) blockBtn.classList.remove('active');
+                    if (screenTitle) screenTitle.textContent = 'Road Runner • Highway 1';
+                    if (guideTitle) guideTitle.textContent = '📖 Road Runner Gestures';
+                    if (detailLabel) detailLabel.textContent = 'Distance';
+                    if (guideContent) {
+                        guideContent.innerHTML = [
+                            '<div class="guide-row"><div class="guide-left"><span>👈 Hand to the Left</span></div><span class="action-tag tag-blue">Steer Left</span></div>',
+                            '<div class="guide-row"><div class="guide-left"><span>👉 Hand to the Right</span></div><span class="action-tag tag-blue">Steer Right</span></div>',
+                            '<div class="guide-row"><div class="guide-left"><span>✊ Fist then 🖐 Open Hand</span></div><span class="action-tag tag-green">BOY JUMPS!</span></div>',
+                            '<div class="guide-row"><div class="guide-left"><span>✊ Hold Closed Fist</span></div><span class="action-tag tag-red">PAUSE GAME</span></div>'
+                        ].join('');
+                    }
+                    showToast('🏃 Switched to Road Runner');
+                } else {
+                    if (runnerBtn) runnerBtn.classList.remove('active');
+                    if (blockBtn) blockBtn.classList.add('active');
+                    if (screenTitle) screenTitle.textContent = 'Block Blast • Grid 8x8';
+                    if (guideTitle) guideTitle.textContent = '📖 Block Blast Gestures';
+                    if (detailLabel) detailLabel.textContent = 'Combo Streak';
+                    if (guideContent) {
+                        guideContent.innerHTML = [
+                            '<div class="guide-row"><div class="guide-left"><span>✋ Move Hand in Air</span></div><span class="action-tag tag-blue">Aim 2D Cursor</span></div>',
+                            '<div class="guide-row"><div class="guide-left"><span>🤏 Pinch OR ✊ Fist</span></div><span class="action-tag tag-green">Grab Piece</span></div>',
+                            '<div class="guide-row"><div class="guide-left"><span>🖐 Open Palm over Grid</span></div><span class="action-tag tag-amber">Place Piece</span></div>',
+                            '<div class="guide-row"><div class="guide-left"><span>⚡ Clear Rows / Columns</span></div><span class="action-tag tag-green">Combo Multiplier</span></div>'
+                        ].join('');
+                    }
+                    showToast('🧩 Switched to Block Blast');
+                }
+                updateStats();
+            })
+            .catch(function() {});
+        }
+
+        // Realtime High-Speed Telemetry Updater (120ms interval = ~8 FPS)
+        function updateStats() {
+            fetch('/api/stats')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (!data) return;
+
+                    // Game state & scores
+                    var stateEl = document.getElementById('stat-state');
+                    if (stateEl) stateEl.textContent = data.state.toUpperCase();
+
+                    var scoreEl = document.getElementById('stat-score');
+                    if (scoreEl) scoreEl.textContent = data.score;
+
+                    var highEl = document.getElementById('stat-high-score');
+                    if (highEl) highEl.textContent = data.high_score;
+
+                    var detailEl = document.getElementById('stat-detail');
+                    if (detailEl) {
+                        if (data.mode === 'runner') {
+                            detailEl.textContent = (data.distance_m || 0) + 'm';
+                        } else {
+                            detailEl.textContent = (data.combo_streak || 0) + 'x';
+                        }
+                    }
+
+                    // Detection Status Badge
+                    var detBadge = document.getElementById('hud-detection-badge');
+                    var screenBox = document.getElementById('screen-box');
+                    if (detBadge) {
+                        if (!data.camera_active) {
+                            detBadge.textContent = '⚠ Waiting Cam';
+                            detBadge.className = 'detection-badge';
+                            if (screenBox) screenBox.classList.remove('tracking-active');
+                        } else if (!data.hand_detected) {
+                            detBadge.textContent = 'Searching Hand 🔍';
+                            detBadge.className = 'detection-badge';
+                            if (screenBox) screenBox.classList.remove('tracking-active');
+                        } else {
+                            detBadge.textContent = 'Tracking Active 🖐️';
+                            detBadge.className = 'detection-badge active';
+                            if (screenBox) screenBox.classList.add('tracking-active');
+                        }
+                    }
+
+                    // Lane Track Indicator
+                    var l0 = document.getElementById('lane-0');
+                    var l1 = document.getElementById('lane-1');
+                    var l2 = document.getElementById('lane-2');
+                    if (l0 && l1 && l2) {
+                        l0.classList.toggle('active', data.lane === 0 && data.hand_detected);
+                        l1.classList.toggle('active', data.lane === 1 && data.hand_detected);
+                        l2.classList.toggle('active', data.lane === 2 && data.hand_detected);
+                    }
+
+                    // Live Gesture Banner pill
+                    var hudEl = document.getElementById('hud-gesture-action');
+                    if (hudEl) {
+                        if (!data.camera_active) {
+                            hudEl.className = 'gesture-pill';
+                            hudEl.innerHTML = '<span>⚠ Webcam connecting...</span>';
+                        } else if (!data.hand_detected) {
+                            hudEl.className = 'gesture-pill';
+                            hudEl.innerHTML = '<span>🔴 Show Hand to Webcam</span>';
+                        } else {
+                            if (data.gesture === 'jump') {
+                                hudEl.className = 'gesture-pill action-jump';
+                                hudEl.innerHTML = '<span>🚀 JUMP DETECTED!</span>';
+                            } else if (data.gesture === 'stop') {
+                                hudEl.className = 'gesture-pill action-stop';
+                                hudEl.innerHTML = '<span>⏸️ GAME PAUSED (FIST)</span>';
+                            } else if (data.is_pinching) {
+                                hudEl.className = 'gesture-pill action-jump';
+                                hudEl.innerHTML = '<span>🤏 PINCH GRAB ACTIVE</span>';
+                            } else if (data.lane === 0) {
+                                hudEl.className = 'gesture-pill action-steer';
+                                hudEl.innerHTML = '<span>👈 STEERING LEFT</span>';
+                            } else if (data.lane === 2) {
+                                hudEl.className = 'gesture-pill action-steer';
+                                hudEl.innerHTML = '<span>👉 STEERING RIGHT</span>';
+                            } else {
+                                hudEl.className = 'gesture-pill';
+                                hudEl.innerHTML = '<span>🟢 RUNNING CENTERED</span>';
+                            }
+                        }
+                    }
+                })
+                .catch(function() {});
+        }
+
+        // Fast poll for ultra-responsive stats & HUD
+        setInterval(updateStats, 120);
+        updateStats();
+
+        // Keyboard Controls Fallback & Testing Shortcut
+        window.addEventListener('keydown', function (e) {
+            if (e.target.tagName === 'INPUT') return;
+            if (e.key === 'ArrowLeft') {
+                sendAction('left');
+            } else if (e.key === 'ArrowRight') {
+                sendAction('right');
+            } else if (e.key === ' ' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                sendAction('jump');
+            } else if (e.key === 'p' || e.key === 'P') {
+                sendAction('stop');
+            }
+        });
+    </script>
+</body>
+</html>
