@@ -131,6 +131,9 @@ def _game_render_worker():
 
             with _gesture_lock:
                 current_gesture = _latest_gesture.copy()
+                # Clear one-shot pulse triggers
+                _latest_gesture['jump_triggered'] = False
+                _latest_gesture['stop_triggered'] = False
 
             # If the browser hasn't sent a webcam frame recently (tab backgrounded,
             # permission revoked, camera busy, page just loaded, etc.) treat the
@@ -155,19 +158,28 @@ def _game_render_worker():
             time.sleep(0.02)
 
 
+_render_thread = None
+_inference_thread = None
+
+
 def _start_background_threads():
-    """Starts the render + inference workers exactly once, whether the app is
-    launched via `python app.py` (dev) or imported by a WSGI server such as
-    gunicorn (prod). gunicorn never executes the `if __name__ == '__main__'`
-    block, so relying on that alone (as the original v2 app did) silently
-    produced a server with no render loop at all under gunicorn."""
-    global _threads_started
+    """Starts the render + inference workers, guaranteeing they are alive
+    both under direct execution and inside forked WSGI (gunicorn) workers."""
+    global _render_thread, _inference_thread
     with _threads_lock:
-        if _threads_started:
-            return
-        threading.Thread(target=_game_render_worker, daemon=True).start()
-        threading.Thread(target=_gesture_inference_worker, daemon=True).start()
-        _threads_started = True
+        if _render_thread is None or not _render_thread.is_alive():
+            _render_thread = threading.Thread(target=_game_render_worker, daemon=True)
+            _render_thread.start()
+        if _inference_thread is None or not _inference_thread.is_alive():
+            _inference_thread = threading.Thread(target=_gesture_inference_worker, daemon=True)
+            _inference_thread.start()
+
+
+@app.before_request
+def _ensure_threads_alive():
+    """Guarantees render and inference threads are running in whichever worker handles requests."""
+    if _render_thread is None or not _render_thread.is_alive() or _inference_thread is None or not _inference_thread.is_alive():
+        _start_background_threads()
 
 
 def _mjpeg_generator():
