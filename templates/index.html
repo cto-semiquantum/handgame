@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
     <style>
         :root {
             --bg-deep: #07090e;
@@ -685,6 +687,110 @@
             transform: translateX(-50%) translateY(0);
             opacity: 1;
         }
+
+        /* Camera Preview Box & HUD Overlay */
+        .cam-preview-box {
+            position: relative;
+            width: 100%;
+            height: 220px;
+            background: #020617;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 4px 20px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cam-preview-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror so user sees themselves naturally */
+            display: block;
+        }
+
+        .cam-preview-box canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* Align skeleton with mirrored video */
+            pointer-events: none;
+        }
+
+        .cam-lane-guides {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: 38% 24% 38%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .cam-lane-zone {
+            border-right: 1px dashed rgba(255, 255, 255, 0.14);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 8px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.35);
+            transition: all 0.15s ease;
+        }
+
+        .cam-lane-zone:last-child {
+            border-right: none;
+        }
+
+        .cam-lane-zone.active-zone {
+            background: rgba(6, 182, 212, 0.18);
+            color: #38bdf8;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.9);
+            border-bottom: 2px solid #38bdf8;
+        }
+
+        .cam-floating-badge {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 800;
+            background: rgba(15, 23, 42, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #cbd5e1;
+            backdrop-filter: blur(10px);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+            z-index: 6;
+            transition: all 0.2s ease;
+        }
+
+        .cam-floating-badge.jump {
+            background: rgba(16, 185, 129, 0.9);
+            color: #ffffff;
+            border-color: #34d399;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+        }
+
+        .cam-floating-badge.fist {
+            background: rgba(244, 63, 94, 0.9);
+            color: #ffffff;
+            border-color: #fb7185;
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -770,17 +876,36 @@
         <!-- Right Side: Cyber Command Deck -->
         <div class="deck-column">
 
-            <!-- Telemetry & Hand Tracking Card -->
+            <!-- Live Camera Feed & Hand Tracker Card -->
             <div class="card">
                 <div class="card-header">
-                    <span class="card-title">📡 Vision &amp; Hand Telemetry</span>
-                    <span class="detection-badge" id="hud-detection-badge">Searching...</span>
+                    <span class="card-title">📷 Live Hand Tracking Camera</span>
+                    <span class="detection-badge" id="hud-detection-badge">Initializing...</span>
                 </div>
 
-                <div class="telemetry-box">
+                <!-- Live Video Preview Box with Overlay Skeleton & Lane Guides -->
+                <div class="cam-preview-box" id="cam-preview-box">
+                    <video id="webcam-video" autoplay playsinline muted></video>
+                    <canvas id="webcam-skeleton-canvas"></canvas>
+
+                    <!-- Three Lane Visual Guide Overlay -->
+                    <div class="cam-lane-guides">
+                        <div class="cam-lane-zone" id="cam-zone-0"><span>👈 LEFT</span></div>
+                        <div class="cam-lane-zone" id="cam-zone-1"><span>🟢 CENTER</span></div>
+                        <div class="cam-lane-zone" id="cam-zone-2"><span>👉 RIGHT</span></div>
+                    </div>
+
+                    <!-- Floating Real-Time Gesture Badge -->
+                    <div class="cam-floating-badge" id="cam-floating-badge">
+                        <span id="cam-badge-icon">🔍</span>
+                        <span id="cam-badge-text">Connecting camera...</span>
+                    </div>
+                </div>
+
+                <div class="telemetry-box" style="margin-top: 14px;">
                     <div class="camera-status-row">
-                        <span style="color:var(--text-muted);">Webcam Pipeline</span>
-                        <strong id="cam-status-detail" style="color:#38bdf8;">Connecting...</strong>
+                        <span style="color:var(--text-muted);">Vision Engine</span>
+                        <strong id="cam-status-detail" style="color:#38bdf8;">Connecting Camera...</strong>
                     </div>
 
                     <!-- Steering / Lane Position Gauge -->
@@ -910,84 +1035,331 @@
 
     </div>
 
-    <!-- Hidden webcam capture pipeline: browser reads webcam and streams frames to backend -->
-    <video id="webcam-video" autoplay playsinline muted style="display:none;"></video>
-    <canvas id="webcam-canvas" style="display:none;"></canvas>
-
     <!-- Toast Notification -->
     <div id="toast">Ready</div>
 
     <script>
-        // High-Responsiveness Capture Pipeline
+        // --- Client-Side Ultra-Responsive MediaPipe Hand Tracker & Skeleton Overlay ---
         (function () {
             var video = document.getElementById('webcam-video');
-            var canvas = document.getElementById('webcam-canvas');
-            var ctx = canvas.getContext('2d');
+            var skeletonCanvas = document.getElementById('webcam-skeleton-canvas');
+            var sCtx = skeletonCanvas ? skeletonCanvas.getContext('2d') : null;
+            var badge = document.getElementById('cam-floating-badge');
+            var badgeIcon = document.getElementById('cam-badge-icon');
+            var badgeText = document.getElementById('cam-badge-text');
+            var statusPill = document.getElementById('cam-status-pill');
+            var statusDetail = document.getElementById('cam-status-detail');
+            var liveIndicator = document.getElementById('live-indicator');
 
-            var CAPTURE_W = {{ inference_width }};
-            var CAPTURE_H = {{ inference_height }};
-            canvas.width = CAPTURE_W;
-            canvas.height = CAPTURE_H;
+            var HAND_CONNECTIONS = [
+                [0, 1], [1, 2], [2, 3], [3, 4],       // thumb
+                [0, 5], [5, 6], [6, 7], [7, 8],       // index
+                [5, 9], [9, 10], [10, 11], [11, 12],  // middle
+                [9, 13], [13, 14], [14, 15], [15, 16],// ring
+                [13, 17], [0, 17], [17, 18], [18, 19], [19, 20] // pinky
+            ];
 
-            // Ultra-responsive upload rate: 33ms (~30 FPS)
-            var SEND_INTERVAL_MS = 33;
-            var sending = false;
+            var currentLane = 1;
+            var lastJumpTime = 0;
+            var fistStartTime = 0;
+            var wasFist = false;
+            var isFistActive = false;
+            var isPinchActive = false;
+            var isOpenPalmActive = false;
+            var lastHeartbeatTime = 0;
 
-            function setCamStatus(text, ok) {
-                var pill = document.getElementById('cam-status-pill');
-                var detail = document.getElementById('cam-status-detail');
-                var dot = document.getElementById('live-indicator');
-                if (pill) pill.textContent = text;
-                if (detail) detail.textContent = text;
-                if (dot) dot.style.background = ok ? 'var(--emerald)' : 'var(--rose)';
+            function dist(p1, p2) {
+                var dx = p1.x - p2.x;
+                var dy = p1.y - p2.y;
+                return Math.sqrt(dx * dx + dy * dy);
             }
 
-            function sendFrame() {
-                if (sending || video.readyState < 2) return;
-                sending = true;
-                ctx.drawImage(video, 0, 0, CAPTURE_W, CAPTURE_H);
-                canvas.toBlob(function (blob) {
-                    if (!blob) { sending = false; return; }
-                    fetch('/process_frame', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'image/jpeg' },
-                        body: blob,
-                    })
-                    .catch(function () { /* drop silently */ })
-                    .finally(function () { sending = false; });
-                }, 'image/jpeg', 0.55);
+            function setUIStatus(text, ok) {
+                if (statusPill) statusPill.textContent = text;
+                if (statusDetail) statusDetail.textContent = text;
+                if (liveIndicator) liveIndicator.style.background = ok ? 'var(--emerald)' : 'var(--rose)';
             }
 
-            function startCapture() {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    setCamStatus('Webcam not supported', false);
+            function updateZoneGuides(lane) {
+                for (var i = 0; i < 3; i++) {
+                    var z = document.getElementById('cam-zone-' + i);
+                    if (z) z.classList.toggle('active-zone', i === lane);
+                }
+            }
+
+            function sendTelemetry(actionOverride) {
+                var now = Date.now();
+                var payload = {
+                    lane: currentLane,
+                    hand_detected: true,
+                    is_pinching: isPinchActive,
+                    is_fist: isFistActive,
+                    is_open_palm: isOpenPalmActive
+                };
+                if (actionOverride) {
+                    payload.action = actionOverride;
+                }
+
+                fetch('/api/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(function () {});
+
+                lastHeartbeatTime = now;
+            }
+
+            function drawSkeleton(landmarks, w, h) {
+                if (!sCtx) return;
+                sCtx.clearRect(0, 0, w, h);
+
+                // Neon cyan bones
+                sCtx.lineWidth = 3.5;
+                sCtx.lineCap = 'round';
+                sCtx.strokeStyle = '#06b6d4';
+                sCtx.shadowColor = 'rgba(6, 182, 212, 0.85)';
+                sCtx.shadowBlur = 8;
+
+                for (var i = 0; i < HAND_CONNECTIONS.length; i++) {
+                    var c = HAND_CONNECTIONS[i];
+                    var p1 = landmarks[c[0]];
+                    var p2 = landmarks[c[1]];
+                    sCtx.beginPath();
+                    sCtx.moveTo(p1.x * w, p1.y * h);
+                    sCtx.lineTo(p2.x * w, p2.y * h);
+                    sCtx.stroke();
+                }
+
+                // Glowing emerald joints & amber tips
+                sCtx.shadowBlur = 0;
+                for (var j = 0; j < landmarks.length; j++) {
+                    var p = landmarks[j];
+                    var isTip = (j === 4 || j === 8 || j === 12 || j === 16 || j === 20);
+                    sCtx.beginPath();
+                    sCtx.arc(p.x * w, p.y * h, isTip ? 5.5 : 3.5, 0, 2 * Math.PI);
+                    sCtx.fillStyle = isTip ? '#f59e0b' : '#10b981';
+                    sCtx.fill();
+                    sCtx.lineWidth = 1.5;
+                    sCtx.strokeStyle = '#ffffff';
+                    sCtx.stroke();
+                }
+            }
+
+            function onHandResults(results) {
+                if (!skeletonCanvas || !sCtx) return;
+
+                if (!skeletonCanvas.width || skeletonCanvas.width !== video.videoWidth) {
+                    skeletonCanvas.width = video.videoWidth || 320;
+                    skeletonCanvas.height = video.videoHeight || 240;
+                }
+
+                var w = skeletonCanvas.width;
+                var h = skeletonCanvas.height;
+                var now = Date.now();
+
+                if (!results.multiHandLandmarks || results.multiHandLandmarks.length === 0) {
+                    sCtx.clearRect(0, 0, w, h);
+                    if (badgeText) badgeText.textContent = 'Searching hand...';
+                    if (badgeIcon) badgeIcon.textContent = '🔍';
+                    if (badge) badge.className = 'cam-floating-badge';
+                    updateZoneGuides(-1);
+
+                    if (now - lastHeartbeatTime > 350) {
+                        fetch('/api/action', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ hand_detected: false })
+                        }).catch(function() {});
+                        lastHeartbeatTime = now;
+                    }
                     return;
                 }
+
+                var lm = results.multiHandLandmarks[0];
+                drawSkeleton(lm, w, h);
+
+                var wrist = lm[0];
+                // Mirrored hand X for steering (user moving hand to their right steers player right)
+                var handX = 1.0 - lm[9].x;
+                var newLane = 1;
+                if (handX < 0.38) newLane = 0;
+                else if (handX > 0.62) newLane = 2;
+
+                updateZoneGuides(newLane);
+
+                // Finger extension detection via wrist-to-joint distances
+                var thumbExt = dist(wrist, lm[4]) > dist(wrist, lm[2]) * 1.12;
+                var indexExt = dist(wrist, lm[8]) > dist(wrist, lm[6]) * 1.15;
+                var middleExt = dist(wrist, lm[12]) > dist(wrist, lm[10]) * 1.15;
+                var ringExt = dist(wrist, lm[16]) > dist(wrist, lm[14]) * 1.15;
+                var pinkyExt = dist(wrist, lm[20]) > dist(wrist, lm[18]) * 1.15;
+
+                var extCount = (thumbExt ? 1 : 0) + (indexExt ? 1 : 0) + (middleExt ? 1 : 0) + (ringExt ? 1 : 0) + (pinkyExt ? 1 : 0);
+
+                isOpenPalmActive = extCount >= 4;
+                isFistActive = extCount <= 1;
+                var pinchDist = dist(lm[4], lm[8]);
+                isPinchActive = pinchDist < 0.08;
+
+                var laneLabel = newLane === 0 ? '👈 LEFT' : (newLane === 2 ? '👉 RIGHT' : '🟢 CENTER');
+                var triggerJump = false;
+                var triggerStop = false;
+
+                // Jump Detection: Fist-to-Open Palm trigger OR open palm flash with cooldown
+                if (isOpenPalmActive) {
+                    if (wasFist || (now - lastJumpTime > 550 && extCount === 5)) {
+                        triggerJump = true;
+                        lastJumpTime = now;
+                    }
+                    wasFist = false;
+                    fistStartTime = 0;
+                } else if (isFistActive) {
+                    wasFist = true;
+                    if (!fistStartTime) fistStartTime = now;
+                    if (now - fistStartTime > 600) {
+                        triggerStop = true; // fist held: pause/stop
+                    }
+                } else {
+                    fistStartTime = 0;
+                }
+
+                // In-camera HUD floating badge update
+                if (triggerJump) {
+                    if (badgeText) badgeText.textContent = '🚀 JUMP! (' + laneLabel + ')';
+                    if (badgeIcon) badgeIcon.textContent = '🚀';
+                    if (badge) badge.className = 'cam-floating-badge jump';
+                } else if (isFistActive) {
+                    if (badgeText) badgeText.textContent = '✊ FIST - PAUSE (' + laneLabel + ')';
+                    if (badgeIcon) badgeIcon.textContent = '✊';
+                    if (badge) badge.className = 'cam-floating-badge fist';
+                } else if (isPinchActive) {
+                    if (badgeText) badgeText.textContent = '🤏 PINCH GRAB (' + laneLabel + ')';
+                    if (badgeIcon) badgeIcon.textContent = '🤏';
+                    if (badge) badge.className = 'cam-floating-badge';
+                } else if (isOpenPalmActive) {
+                    if (badgeText) badgeText.textContent = '🖐 OPEN PALM (' + laneLabel + ')';
+                    if (badgeIcon) badgeIcon.textContent = '🖐';
+                    if (badge) badge.className = 'cam-floating-badge';
+                } else {
+                    if (badgeText) badgeText.textContent = '🖐 TRACKING (' + laneLabel + ')';
+                    if (badgeIcon) badgeIcon.textContent = '🖐';
+                    if (badge) badge.className = 'cam-floating-badge';
+                }
+
+                var laneChanged = (newLane !== currentLane);
+                currentLane = newLane;
+
+                // Send lightweight telemetry (instant on lane change or action pulse; otherwise 60ms heartbeat)
+                if (triggerJump) {
+                    sendTelemetry('jump');
+                } else if (triggerStop) {
+                    sendTelemetry('stop');
+                } else if (laneChanged || (now - lastHeartbeatTime > 60)) {
+                    sendTelemetry();
+                }
+            }
+
+            function initClientMediaPipe(stream) {
+                video.srcObject = stream;
+                video.play().catch(function () {});
+
+                if (typeof Hands === 'undefined') {
+                    setUIStatus('Fallback Vision (Active)', true);
+                    startServerFallback();
+                    return;
+                }
+
+                setUIStatus('AI Vision Active (60 FPS)', true);
+
+                var hands = new Hands({
+                    locateFile: function (file) {
+                        return 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/' + file;
+                    }
+                });
+
+                hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 0,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+
+                hands.onResults(onHandResults);
+
+                if (typeof Camera !== 'undefined') {
+                    var camera = new Camera(video, {
+                        onFrame: async function () {
+                            await hands.send({ image: video });
+                        },
+                        width: 320,
+                        height: 240
+                    });
+                    camera.start();
+                } else {
+                    function processNext() {
+                        if (video.readyState >= 2) {
+                            hands.send({ image: video }).catch(function () {});
+                        }
+                        requestAnimationFrame(processNext);
+                    }
+                    requestAnimationFrame(processNext);
+                }
+            }
+
+            function startServerFallback() {
+                var fallbackCanvas = document.createElement('canvas');
+                fallbackCanvas.width = 320;
+                fallbackCanvas.height = 240;
+                var fCtx = fallbackCanvas.getContext('2d');
+                var sending = false;
+
+                setInterval(function () {
+                    if (sending || video.readyState < 2) return;
+                    sending = true;
+                    fCtx.drawImage(video, 0, 0, 320, 240);
+                    fallbackCanvas.toBlob(function (blob) {
+                        if (!blob) { sending = false; return; }
+                        fetch('/process_frame', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'image/jpeg' },
+                            body: blob
+                        }).catch(function () {})
+                        .finally(function () { sending = false; });
+                    }, 'image/jpeg', 0.5);
+                }, 200); // 5 FPS gentle rate
+            }
+
+            function startCamera() {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    setUIStatus('Camera Not Supported', false);
+                    if (badgeText) badgeText.textContent = 'Camera not supported';
+                    return;
+                }
+
                 navigator.mediaDevices.getUserMedia({
-                    video: { width: { ideal: CAPTURE_W }, height: { ideal: CAPTURE_H }, frameRate: { ideal: 30 } },
-                    audio: false,
+                    video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 30 } },
+                    audio: false
                 }).then(function (stream) {
-                    video.srcObject = stream;
-                    setCamStatus('Webcam Stream Active (30 FPS)', true);
-                    setInterval(sendFrame, SEND_INTERVAL_MS);
+                    initClientMediaPipe(stream);
                 }).catch(function (err) {
-                    setCamStatus('Webcam Access Blocked', false);
+                    setUIStatus('Camera Access Blocked', false);
+                    if (badgeText) badgeText.textContent = 'Camera permission blocked';
+                    if (badgeIcon) badgeIcon.textContent = '🚫';
                 });
             }
 
-            startCapture();
+            startCamera();
         })();
 
         // Dual-Stream Fallback Engine (Guarantees video display even behind restrictive proxies)
         (function() {
             var img = document.getElementById('game-stream');
             var canvas = document.getElementById('game-canvas');
-            var ctx = canvas.getContext('2d');
+            var ctx = canvas ? canvas.getContext('2d') : null;
             var activeMode = 'mjpeg';
-            var pollerInterval = null;
 
             function activatePoller() {
-                if (activeMode === 'poller') return;
+                if (activeMode === 'poller' || !canvas || !ctx) return;
                 activeMode = 'poller';
                 img.style.display = 'none';
                 canvas.style.display = 'block';
@@ -1001,26 +1373,30 @@
                     nextImg.onload = function() {
                         ctx.drawImage(nextImg, 0, 0, canvas.width, canvas.height);
                         fetching = false;
+                        setTimeout(getNext, 45); // ~22 FPS smooth fallback
                     };
                     nextImg.onerror = function() {
                         fetching = false;
+                        setTimeout(getNext, 100);
                     };
                     nextImg.src = '/current_frame.jpg?t=' + Date.now();
                 }
 
-                pollerInterval = setInterval(getNext, 33);
+                getNext();
             }
 
-            // If MJPEG hasn't displayed a real frame in 1.2s or errors out, smoothly switch to canvas
+            // If MJPEG hasn't produced frames in 2.5s or errors out, smoothly switch to canvas
             setTimeout(function() {
-                if (!img.complete || img.naturalWidth === 0) {
+                if (img && img.naturalWidth === 0) {
                     activatePoller();
                 }
-            }, 1200);
+            }, 2500);
 
-            img.onerror = function() {
-                activatePoller();
-            };
+            if (img) {
+                img.onerror = function() {
+                    activatePoller();
+                };
+            }
         })();
 
         // Toast Helper

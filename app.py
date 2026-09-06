@@ -348,28 +348,55 @@ def toggle_mirror():
 
 @app.route('/api/action', methods=['POST'])
 def api_action():
-    """Allows instant keyboard/UI simulated control actions for testing and dual-input."""
+    """High-speed gesture telemetry & action endpoint.
+    Accepts lightweight JSON signals from client-side hand tracker (0ms latency, zero bandwidth bloat)
+    or keyboard fallback."""
+    global _last_frame_received_at
+    _last_frame_received_at = time.time()
+
     data = request.get_json(silent=True) or request.form.to_dict() or {}
     action = data.get('action')
+    lane = data.get('lane')
+    cursor = data.get('cursor')
+    is_pinching = data.get('is_pinching')
+    is_fist = data.get('is_fist')
+    is_open_palm = data.get('is_open_palm')
+    hand_detected = data.get('hand_detected')
+
     with _gesture_lock:
-        if action == 'left':
-            _latest_gesture['lane'] = 0
-        elif action == 'center':
-            _latest_gesture['lane'] = 1
-        elif action == 'right':
-            _latest_gesture['lane'] = 2
-        elif action == 'jump':
+        if hand_detected is not None:
+            _latest_gesture['hand_detected'] = bool(hand_detected)
+        if lane is not None:
+            _latest_gesture['lane'] = max(0, min(2, int(lane)))
+            _latest_gesture['hand_detected'] = True
+        if cursor is not None and isinstance(cursor, (list, tuple)) and len(cursor) >= 2:
+            _latest_gesture['cursor_pos'] = (max(0.0, min(1.0, float(cursor[0]))),
+                                             max(0.0, min(1.0, float(cursor[1]))))
+            _latest_gesture['hand_detected'] = True
+        if is_pinching is not None:
+            _latest_gesture['is_pinching'] = bool(is_pinching)
+        if is_fist is not None:
+            _latest_gesture['is_fist'] = bool(is_fist)
+        if is_open_palm is not None:
+            _latest_gesture['is_open_palm'] = bool(is_open_palm)
+
+        if action == 'jump':
             _latest_gesture['jump_triggered'] = True
             _latest_gesture['gesture'] = 'jump'
         elif action in ('stop', 'pause'):
             _latest_gesture['stop_triggered'] = True
             _latest_gesture['gesture'] = 'stop'
-        elif action == 'fist':
-            _latest_gesture['is_fist'] = True
-            _latest_gesture['is_pinching'] = True
-        elif action == 'open':
-            _latest_gesture['is_open_palm'] = True
-            _latest_gesture['is_pinching'] = False
+        elif action == 'run':
+            _latest_gesture['gesture'] = 'run'
+        elif action == 'left':
+            _latest_gesture['lane'] = 0
+            _latest_gesture['hand_detected'] = True
+        elif action == 'center':
+            _latest_gesture['lane'] = 1
+            _latest_gesture['hand_detected'] = True
+        elif action == 'right':
+            _latest_gesture['lane'] = 2
+            _latest_gesture['hand_detected'] = True
 
     if action == 'start':
         game.start()
