@@ -243,7 +243,7 @@ class RunnerGame(BaseGame):
 
             pygame.draw.rect(surface, (15, 23, 42), (bar_x - 2, bar_y - 2, bar_w + 4, bar_h + 4), border_radius=4)
             pygame.draw.rect(surface, (245, 158, 11), (bar_x, bar_y, int(bar_w * pct), bar_h), border_radius=4)
-            sk_txt = self.font_tiny.render("⚡ SKATEBOARD SHIELD ACTIVE!", True, (245, 158, 11))
+            sk_txt = self.font_tiny.render("SKATEBOARD SHIELD ACTIVE!", True, (245, 158, 11))
             surface.blit(sk_txt, (bar_x, bar_y + 12))
 
     def _render_menu(self, surface):
@@ -258,10 +258,10 @@ class RunnerGame(BaseGame):
         surface.blit(sub, sub.get_rect(center=(config.CANVAS_WIDTH // 2, 245)))
 
         instructions = [
-            "👈 Move hand Left   -> Steer Left",
-            "👉 Move hand Right  -> Steer Right",
-            "✊ Close fist then 🖐 Open hand -> JUMP!",
-            "✊ Hold closed fist -> STOP / PAUSE",
+            "<-  Move hand Left   -> Steer Left",
+            "->  Move hand Right  -> Steer Right",
+            "[Fist -> Open Hand]  -> JUMP!",
+            "[Hold Closed Fist]   -> STOP / PAUSE",
         ]
         for i, text in enumerate(instructions):
             txt_surf = self.font_small.render(text, True, (226, 232, 240))
@@ -278,7 +278,7 @@ class RunnerGame(BaseGame):
         title = self.font_big.render("GAME PAUSED", True, (245, 158, 11))
         surface.blit(title, title.get_rect(center=(config.CANVAS_WIDTH // 2, 280)))
 
-        msg = self.font_small.render("🖐 Show open hand or click Play to Resume", True, (255, 255, 255))
+        msg = self.font_small.render("Show open hand or click Play to Resume", True, (255, 255, 255))
         surface.blit(msg, msg.get_rect(center=(config.CANVAS_WIDTH // 2, 340)))
 
     def _render_gameover(self, surface):
