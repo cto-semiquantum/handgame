@@ -511,6 +511,81 @@
             transform: translateY(-2px);
         }
 
+        /* Block Blast Tray Quick Select & Cam Guide */
+        .block-slots-container {
+            margin-top: 10px;
+        }
+        .block-slot-btns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .slot-btn {
+            background: rgba(30, 41, 59, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: var(--radius-sm);
+            color: #e2e8f0;
+            padding: 8px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: center;
+            font-family: inherit;
+        }
+        .slot-btn:hover {
+            background: rgba(99, 102, 241, 0.25);
+            border-color: rgba(99, 102, 241, 0.5);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+        .slot-btn.active-slot {
+            background: rgba(245, 158, 11, 0.25);
+            border-color: #f59e0b;
+            color: #fbbf24;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
+        }
+        .slot-btn.cancel-btn {
+            grid-column: span 2;
+            background: rgba(244, 63, 94, 0.12);
+            border-color: rgba(244, 63, 94, 0.3);
+            color: #fda4af;
+        }
+        .slot-btn.cancel-btn:hover {
+            background: rgba(244, 63, 94, 0.25);
+            border-color: rgba(244, 63, 94, 0.6);
+            color: #ffffff;
+        }
+        .cam-block-guide {
+            position: absolute;
+            inset: 12px;
+            border: 2px dashed rgba(6, 182, 212, 0.35);
+            border-radius: 12px;
+            pointer-events: none;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 8px;
+        }
+        .cam-aim-box span {
+            font-size: 11px;
+            font-weight: 700;
+            color: #67e8f9;
+            letter-spacing: 0.8px;
+            background: rgba(15, 23, 42, 0.75);
+            padding: 3px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+        .screen-canvas-wrap.mode-block {
+            cursor: grab;
+            touch-action: none;
+        }
+        .screen-canvas-wrap.mode-block:active {
+            cursor: grabbing;
+        }
+
         /* Stats Grid */
         .stats-quad {
             display: grid;
@@ -840,7 +915,7 @@
                     <div>Canvas 480x720</div>
                 </div>
 
-                <div class="screen-canvas-wrap">
+                <div class="screen-canvas-wrap {{ 'mode-block' if mode == 'block_blast' else '' }}" id="screen-canvas-wrap">
                     <img id="game-stream" src="{{ url_for('video_feed') }}" alt="Gesturo Video Stream">
                     <canvas id="game-canvas" width="480" height="720" style="display:none;"></canvas>
                 </div>
@@ -864,12 +939,20 @@
                 </button>
             </div>
 
-            <!-- Keyboard Fallback Hint -->
-            <div class="keys-legend">
+            <!-- Controls / Keyboard Fallback Hint -->
+            <div class="keys-legend" id="keys-legend-box">
+                {% if mode == 'runner' %}
                 <span>Keyboard Fallback:</span>
                 <span class="kbd">←</span> <span class="kbd">→</span> Steer &bull;
                 <span class="kbd">Space</span> / <span class="kbd">↑</span> Jump &bull;
                 <span class="kbd">P</span> Pause
+                {% else %}
+                <span>Controls:</span>
+                <span class="kbd">Mouse / Hand Pinch</span> Grab &bull;
+                <span class="kbd">Open Hand / Click</span> Place &bull;
+                <span class="kbd">1, 2, 3</span> Pick Slot &bull;
+                <span class="kbd">Esc</span> Cancel
+                {% endif %}
             </div>
         </div>
 
@@ -888,11 +971,16 @@
                     <video id="webcam-video" autoplay playsinline muted></video>
                     <canvas id="webcam-skeleton-canvas"></canvas>
 
-                    <!-- Three Lane Visual Guide Overlay -->
-                    <div class="cam-lane-guides">
+                    <!-- Three Lane Visual Guide Overlay (Runner Mode) -->
+                    <div class="cam-lane-guides" id="cam-lane-guides" style="{{ 'display:none;' if mode == 'block_blast' else '' }}">
                         <div class="cam-lane-zone" id="cam-zone-0"><span>👈 LEFT</span></div>
                         <div class="cam-lane-zone" id="cam-zone-1"><span>🟢 CENTER</span></div>
                         <div class="cam-lane-zone" id="cam-zone-2"><span>👉 RIGHT</span></div>
+                    </div>
+
+                    <!-- Block Blast Aim Reticle Guide (Block Blast Mode) -->
+                    <div class="cam-block-guide" id="cam-block-guide" style="{{ '' if mode == 'block_blast' else 'display:none;' }}">
+                        <div class="cam-aim-box"><span>🎯 2D AIM AREA</span></div>
                     </div>
 
                     <!-- Floating Real-Time Gesture Badge -->
@@ -908,8 +996,8 @@
                         <strong id="cam-status-detail" style="color:#38bdf8;">Connecting Camera...</strong>
                     </div>
 
-                    <!-- Steering / Lane Position Gauge -->
-                    <div class="lane-gauge-container">
+                    <!-- Steering / Lane Position Gauge (Runner Mode) -->
+                    <div class="lane-gauge-container" id="lane-gauge-container" style="{{ 'display:none;' if mode == 'block_blast' else '' }}">
                         <div class="gauge-labels">
                             <span>Left Lane</span>
                             <span>Center</span>
@@ -919,6 +1007,20 @@
                             <div class="lane-segment" id="lane-0">👈 Left</div>
                             <div class="lane-segment active" id="lane-1">🟢 Center</div>
                             <div class="lane-segment" id="lane-2">👉 Right</div>
+                        </div>
+                    </div>
+
+                    <!-- Tray Slots Quick Selector (Block Blast Mode) -->
+                    <div class="block-slots-container" id="block-slots-container" style="{{ '' if mode == 'block_blast' else 'display:none;' }}">
+                        <div class="gauge-labels">
+                            <span>Quick Pick Tray Piece:</span>
+                            <span id="held-piece-indicator" style="color:#94a3b8; font-weight:700;">No piece held</span>
+                        </div>
+                        <div class="block-slot-btns">
+                            <button type="button" class="slot-btn" id="slot-btn-0" onclick="sendSlotPick(0)">🧩 Slot 1 (Key 1)</button>
+                            <button type="button" class="slot-btn" id="slot-btn-1" onclick="sendSlotPick(1)">🧩 Slot 2 (Key 2)</button>
+                            <button type="button" class="slot-btn" id="slot-btn-2" onclick="sendSlotPick(2)">🧩 Slot 3 (Key 3)</button>
+                            <button type="button" class="slot-btn cancel-btn" id="slot-btn-cancel" onclick="sendCancelDrop()">↩ Return to Tray</button>
                         </div>
                     </div>
                 </div>
@@ -1065,8 +1167,13 @@
             var wasFist = false;
             var isFistActive = false;
             var isPinchActive = false;
+            var wasPinchActive = false;
             var isOpenPalmActive = false;
             var lastHeartbeatTime = 0;
+            var currentMode = "{{ mode }}";
+            var currentCursor = [0.5, 0.5];
+            var lastSentCursorX = 0.5;
+            var lastSentCursorY = 0.5;
 
             function dist(p1, p2) {
                 var dx = p1.x - p2.x;
@@ -1087,10 +1194,11 @@
                 }
             }
 
-            function sendTelemetry(actionOverride) {
+            function sendTelemetry(actionOverride, extraPayload) {
                 var now = Date.now();
                 var payload = {
                     lane: currentLane,
+                    cursor: currentCursor,
                     hand_detected: true,
                     is_pinching: isPinchActive,
                     is_fist: isFistActive,
@@ -1098,6 +1206,9 @@
                 };
                 if (actionOverride) {
                     payload.action = actionOverride;
+                }
+                if (extraPayload) {
+                    Object.assign(payload, extraPayload);
                 }
 
                 fetch('/api/action', {
@@ -1179,8 +1290,36 @@
                 drawSkeleton(lm, w, h);
 
                 var wrist = lm[0];
-                // Mirrored hand X for steering (user moving hand to their right steers player right)
-                var handX = 1.0 - lm[9].x;
+                var thumbTip = lm[4];
+                var indexTip = lm[8];
+                var middleMcp = lm[9];
+
+                // Scale-invariant pinch calculation
+                var palmSize = dist(wrist, middleMcp);
+                var pinchDist = dist(thumbTip, indexTip);
+                var pinchRatio = pinchDist / Math.max(0.02, palmSize);
+
+                if (!isPinchActive && pinchRatio < 0.38) {
+                    isPinchActive = true;
+                } else if (isPinchActive && pinchRatio > 0.52) {
+                    isPinchActive = false;
+                }
+
+                // Smooth cursor position: midpoint of thumb & index (ideal for pinch & drag)
+                // Remap comfortable camera range [0.10, 0.90] to [0.0, 1.0]
+                function remap(val, minIn, maxIn) {
+                    return Math.max(0.0, Math.min(1.0, (val - minIn) / (maxIn - minIn)));
+                }
+
+                var rawCursorX = 1.0 - (thumbTip.x + indexTip.x) * 0.5; // mirrored
+                var rawCursorY = (thumbTip.y + indexTip.y) * 0.5;
+
+                var cursorX = remap(rawCursorX, 0.10, 0.90);
+                var cursorY = remap(rawCursorY, 0.10, 0.90);
+                currentCursor = [cursorX, cursorY];
+
+                // Runner Lane detection
+                var handX = 1.0 - middleMcp.x;
                 var newLane = 1;
                 if (handX < 0.38) newLane = 0;
                 else if (handX > 0.62) newLane = 2;
@@ -1198,14 +1337,12 @@
 
                 isOpenPalmActive = extCount >= 4;
                 isFistActive = extCount <= 1;
-                var pinchDist = dist(lm[4], lm[8]);
-                isPinchActive = pinchDist < 0.08;
 
                 var laneLabel = newLane === 0 ? '👈 LEFT' : (newLane === 2 ? '👉 RIGHT' : '🟢 CENTER');
                 var triggerJump = false;
                 var triggerStop = false;
 
-                // Jump Detection: Fist-to-Open Palm trigger OR open palm flash with cooldown
+                // Jump / Pause Detection for Runner Mode
                 if (isOpenPalmActive) {
                     if (wasFist || (now - lastJumpTime > 550 && extCount === 5)) {
                         triggerJump = true;
@@ -1223,39 +1360,67 @@
                     fistStartTime = 0;
                 }
 
-                // In-camera HUD floating badge update
-                if (triggerJump) {
-                    if (badgeText) badgeText.textContent = '🚀 JUMP! (' + laneLabel + ')';
-                    if (badgeIcon) badgeIcon.textContent = '🚀';
-                    if (badge) badge.className = 'cam-floating-badge jump';
-                } else if (isFistActive) {
-                    if (badgeText) badgeText.textContent = '✊ FIST - PAUSE (' + laneLabel + ')';
-                    if (badgeIcon) badgeIcon.textContent = '✊';
-                    if (badge) badge.className = 'cam-floating-badge fist';
-                } else if (isPinchActive) {
-                    if (badgeText) badgeText.textContent = '🤏 PINCH GRAB (' + laneLabel + ')';
-                    if (badgeIcon) badgeIcon.textContent = '🤏';
-                    if (badge) badge.className = 'cam-floating-badge';
-                } else if (isOpenPalmActive) {
-                    if (badgeText) badgeText.textContent = '🖐 OPEN PALM (' + laneLabel + ')';
-                    if (badgeIcon) badgeIcon.textContent = '🖐';
-                    if (badge) badge.className = 'cam-floating-badge';
+                // Floating real-time camera badge
+                if (currentMode === 'block_blast') {
+                    if (isPinchActive || isFistActive) {
+                        if (badgeText) badgeText.textContent = '🤏 PIECE GRABBED!';
+                        if (badgeIcon) badgeIcon.textContent = '🤏';
+                        if (badge) badge.className = 'cam-floating-badge jump';
+                    } else if (isOpenPalmActive) {
+                        if (badgeText) badgeText.textContent = '🖐 OPEN PALM (DROP)';
+                        if (badgeIcon) badgeIcon.textContent = '🖐';
+                        if (badge) badge.className = 'cam-floating-badge fist';
+                    } else {
+                        var aimDesc = cursorY > 0.72 ? 'HOVERING TRAY' : 'HOVERING GRID';
+                        if (badgeText) badgeText.textContent = '🎯 AIMING (' + aimDesc + ')';
+                        if (badgeIcon) badgeIcon.textContent = '🎯';
+                        if (badge) badge.className = 'cam-floating-badge';
+                    }
                 } else {
-                    if (badgeText) badgeText.textContent = '🖐 TRACKING (' + laneLabel + ')';
-                    if (badgeIcon) badgeIcon.textContent = '🖐';
-                    if (badge) badge.className = 'cam-floating-badge';
+                    if (triggerJump) {
+                        if (badgeText) badgeText.textContent = '🚀 JUMP! (' + laneLabel + ')';
+                        if (badgeIcon) badgeIcon.textContent = '🚀';
+                        if (badge) badge.className = 'cam-floating-badge jump';
+                    } else if (isFistActive) {
+                        if (badgeText) badgeText.textContent = '✊ FIST - PAUSE (' + laneLabel + ')';
+                        if (badgeIcon) badgeIcon.textContent = '✊';
+                        if (badge) badge.className = 'cam-floating-badge fist';
+                    } else if (isPinchActive) {
+                        if (badgeText) badgeText.textContent = '🤏 PINCH GRAB (' + laneLabel + ')';
+                        if (badgeIcon) badgeIcon.textContent = '🤏';
+                        if (badge) badge.className = 'cam-floating-badge';
+                    } else if (isOpenPalmActive) {
+                        if (badgeText) badgeText.textContent = '🖐 OPEN PALM (' + laneLabel + ')';
+                        if (badgeIcon) badgeIcon.textContent = '🖐';
+                        if (badge) badge.className = 'cam-floating-badge';
+                    } else {
+                        if (badgeText) badgeText.textContent = '🖐 TRACKING (' + laneLabel + ')';
+                        if (badgeIcon) badgeIcon.textContent = '🖐';
+                        if (badge) badge.className = 'cam-floating-badge';
+                    }
                 }
 
                 var laneChanged = (newLane !== currentLane);
                 currentLane = newLane;
 
-                // Send lightweight telemetry (instant on lane change or action pulse; otherwise 60ms heartbeat)
-                if (triggerJump) {
-                    sendTelemetry('jump');
-                } else if (triggerStop) {
-                    sendTelemetry('stop');
-                } else if (laneChanged || (now - lastHeartbeatTime > 60)) {
-                    sendTelemetry();
+                var cursorMoved = (Math.abs(cursorX - lastSentCursorX) > 0.006 || Math.abs(cursorY - lastSentCursorY) > 0.006);
+                var pinchChanged = (isPinchActive !== wasPinchActive);
+                wasPinchActive = isPinchActive;
+
+                if (currentMode === 'block_blast') {
+                    if (pinchChanged || (cursorMoved && now - lastHeartbeatTime > 28) || (now - lastHeartbeatTime > 50)) {
+                        lastSentCursorX = cursorX;
+                        lastSentCursorY = cursorY;
+                        sendTelemetry();
+                    }
+                } else {
+                    if (triggerJump) {
+                        sendTelemetry('jump');
+                    } else if (triggerStop) {
+                        sendTelemetry('stop');
+                    } else if (laneChanged || (now - lastHeartbeatTime > 60)) {
+                        sendTelemetry();
+                    }
                 }
             }
 
@@ -1466,7 +1631,7 @@
             .catch(function() {});
         }
 
-        // Mode Switcher with Dynamic Guide Updates
+        // Mode Switcher with Dynamic Guide & UI Updates
         function switchMode(newMode) {
             fetch('/select_mode', {
                 method: 'POST',
@@ -1475,12 +1640,19 @@
             })
             .then(function(res) { return res.json(); })
             .then(function(data) {
+                currentMode = newMode;
                 var runnerBtn = document.getElementById('mode-runner-btn');
                 var blockBtn = document.getElementById('mode-block-btn');
                 var screenTitle = document.getElementById('screen-mode-title');
                 var guideTitle = document.getElementById('guide-title');
                 var guideContent = document.getElementById('guide-content');
                 var detailLabel = document.getElementById('stat-detail-label');
+                var laneGauge = document.getElementById('lane-gauge-container');
+                var blockSlots = document.getElementById('block-slots-container');
+                var camLanes = document.getElementById('cam-lane-guides');
+                var camBlock = document.getElementById('cam-block-guide');
+                var screenWrap = document.getElementById('screen-canvas-wrap');
+                var keysLegend = document.getElementById('keys-legend-box');
 
                 if (newMode === 'runner') {
                     if (runnerBtn) runnerBtn.classList.add('active');
@@ -1488,6 +1660,14 @@
                     if (screenTitle) screenTitle.textContent = 'Road Runner • Highway 1';
                     if (guideTitle) guideTitle.textContent = '📖 Road Runner Gestures';
                     if (detailLabel) detailLabel.textContent = 'Distance';
+                    if (laneGauge) laneGauge.style.display = '';
+                    if (blockSlots) blockSlots.style.display = 'none';
+                    if (camLanes) camLanes.style.display = '';
+                    if (camBlock) camBlock.style.display = 'none';
+                    if (screenWrap) screenWrap.classList.remove('mode-block');
+                    if (keysLegend) {
+                        keysLegend.innerHTML = '<span>Keyboard Fallback:</span> <span class="kbd">←</span> <span class="kbd">→</span> Steer &bull; <span class="kbd">Space</span> / <span class="kbd">↑</span> Jump &bull; <span class="kbd">P</span> Pause';
+                    }
                     if (guideContent) {
                         guideContent.innerHTML = [
                             '<div class="guide-row"><div class="guide-left"><span>👈 Hand to the Left</span></div><span class="action-tag tag-blue">Steer Left</span></div>',
@@ -1503,6 +1683,14 @@
                     if (screenTitle) screenTitle.textContent = 'Block Blast • Grid 8x8';
                     if (guideTitle) guideTitle.textContent = '📖 Block Blast Gestures';
                     if (detailLabel) detailLabel.textContent = 'Combo Streak';
+                    if (laneGauge) laneGauge.style.display = 'none';
+                    if (blockSlots) blockSlots.style.display = '';
+                    if (camLanes) camLanes.style.display = 'none';
+                    if (camBlock) camBlock.style.display = '';
+                    if (screenWrap) screenWrap.classList.add('mode-block');
+                    if (keysLegend) {
+                        keysLegend.innerHTML = '<span>Controls:</span> <span class="kbd">Mouse / Hand Pinch</span> Grab &bull; <span class="kbd">Open Hand / Click</span> Place &bull; <span class="kbd">1, 2, 3</span> Pick Slot &bull; <span class="kbd">Esc</span> Cancel';
+                    }
                     if (guideContent) {
                         guideContent.innerHTML = [
                             '<div class="guide-row"><div class="guide-left"><span>✋ Move Hand in Air</span></div><span class="action-tag tag-blue">Aim 2D Cursor</span></div>',
@@ -1517,6 +1705,91 @@
             })
             .catch(function() {});
         }
+
+        // Quick Slot Picker for Block Blast
+        function sendSlotPick(slotIdx) {
+            fetch('/api/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slot: slotIdx, hand_detected: true })
+            })
+            .then(function() {
+                showToast('🧩 Picked Piece ' + (slotIdx + 1));
+                updateStats();
+            })
+            .catch(function() {});
+        }
+
+        // Cancel / Return held piece to tray
+        function sendCancelDrop() {
+            fetch('/api/action', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'return_tray' })
+            })
+            .then(function() {
+                showToast('↩ Returned to Tray');
+                updateStats();
+            })
+            .catch(function() {});
+        }
+
+        // Pointer / Mouse / Touch interaction on screen canvas
+        (function() {
+            var screenWrap = document.getElementById('screen-canvas-wrap');
+            var isPointerDown = false;
+            var lastPointerSend = 0;
+
+            function pointerCoords(e) {
+                var rect = screenWrap.getBoundingClientRect();
+                var px = (e.clientX - rect.left) / rect.width;
+                var py = (e.clientY - rect.top) / rect.height;
+                return [
+                    Math.max(0.0, Math.min(1.0, px)),
+                    Math.max(0.0, Math.min(1.0, py))
+                ];
+            }
+
+            if (screenWrap) {
+                screenWrap.addEventListener('pointerdown', function(e) {
+                    if (currentMode !== 'block_blast') return;
+                    isPointerDown = true;
+                    var c = pointerCoords(e);
+                    currentCursor = c;
+                    fetch('/api/action', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cursor: c, is_pinching: true, is_fist: false, is_open_palm: false, hand_detected: true })
+                    }).catch(function() {});
+                });
+
+                window.addEventListener('pointermove', function(e) {
+                    if (currentMode !== 'block_blast' || !isPointerDown) return;
+                    var now = Date.now();
+                    if (now - lastPointerSend < 25) return; // 40 FPS max
+                    lastPointerSend = now;
+                    var c = pointerCoords(e);
+                    currentCursor = c;
+                    fetch('/api/action', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cursor: c, is_pinching: true, is_fist: false, is_open_palm: false, hand_detected: true })
+                    }).catch(function() {});
+                });
+
+                window.addEventListener('pointerup', function(e) {
+                    if (currentMode !== 'block_blast' || !isPointerDown) return;
+                    isPointerDown = false;
+                    var c = pointerCoords(e);
+                    currentCursor = c;
+                    fetch('/api/action', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cursor: c, is_pinching: false, is_fist: false, is_open_palm: true, action: 'place', hand_detected: true })
+                    }).catch(function() {});
+                });
+            }
+        })();
 
         // Realtime High-Speed Telemetry Updater (120ms interval = ~8 FPS)
         function updateStats() {
@@ -1541,6 +1814,18 @@
                             detailEl.textContent = (data.distance_m || 0) + 'm';
                         } else {
                             detailEl.textContent = (data.combo_streak || 0) + 'x';
+                        }
+                    }
+
+                    // Block blast piece indicator
+                    var heldIndicator = document.getElementById('held-piece-indicator');
+                    if (heldIndicator) {
+                        if (data.held_piece) {
+                            heldIndicator.textContent = 'Held: ' + data.held_piece.toUpperCase();
+                            heldIndicator.style.color = '#10b981';
+                        } else {
+                            heldIndicator.textContent = 'No piece held';
+                            heldIndicator.style.color = '#94a3b8';
                         }
                     }
 
@@ -1581,7 +1866,18 @@
                             hudEl.innerHTML = '<span>⚠ Webcam connecting...</span>';
                         } else if (!data.hand_detected) {
                             hudEl.className = 'gesture-pill';
-                            hudEl.innerHTML = '<span>🔴 Show Hand to Webcam</span>';
+                            hudEl.innerHTML = '<span>🔴 Show Hand to Webcam / Use Mouse</span>';
+                        } else if (data.mode === 'block_blast') {
+                            if (data.held_piece || data.is_pinching || data.is_fist) {
+                                hudEl.className = 'gesture-pill action-jump';
+                                hudEl.innerHTML = '<span>🤏 PIECE HELD • MOVE TO GRID & OPEN HAND</span>';
+                            } else if (data.is_open_palm) {
+                                hudEl.className = 'gesture-pill action-steer';
+                                hudEl.innerHTML = '<span>🖐 OPEN HAND • READY TO DROP</span>';
+                            } else {
+                                hudEl.className = 'gesture-pill';
+                                hudEl.innerHTML = '<span>🎯 MOVE OVER TRAY & PINCH TO GRAB</span>';
+                            }
                         } else {
                             if (data.gesture === 'jump') {
                                 hudEl.className = 'gesture-pill action-jump';
@@ -1615,15 +1911,34 @@
         // Keyboard Controls Fallback & Testing Shortcut
         window.addEventListener('keydown', function (e) {
             if (e.target.tagName === 'INPUT') return;
-            if (e.key === 'ArrowLeft') {
-                sendAction('left');
-            } else if (e.key === 'ArrowRight') {
-                sendAction('right');
-            } else if (e.key === ' ' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                sendAction('jump');
-            } else if (e.key === 'p' || e.key === 'P') {
-                sendAction('stop');
+            if (currentMode === 'block_blast') {
+                if (e.key === '1' || e.key === '2' || e.key === '3') {
+                    sendSlotPick(parseInt(e.key) - 1);
+                } else if (e.key === 'ArrowLeft') {
+                    fetch('/api/action', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ move_cursor: [-46, 0] }) });
+                } else if (e.key === 'ArrowRight') {
+                    fetch('/api/action', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ move_cursor: [46, 0] }) });
+                } else if (e.key === 'ArrowUp') {
+                    fetch('/api/action', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ move_cursor: [0, -46] }) });
+                } else if (e.key === 'ArrowDown') {
+                    fetch('/api/action', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ move_cursor: [0, 46] }) });
+                } else if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    fetch('/api/action', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ action: 'place' }) });
+                } else if (e.key === 'Escape' || e.key === 'Backspace') {
+                    sendCancelDrop();
+                }
+            } else {
+                if (e.key === 'ArrowLeft') {
+                    sendAction('left');
+                } else if (e.key === 'ArrowRight') {
+                    sendAction('right');
+                } else if (e.key === ' ' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    sendAction('jump');
+                } else if (e.key === 'p' || e.key === 'P') {
+                    sendAction('stop');
+                }
             }
         });
     </script>

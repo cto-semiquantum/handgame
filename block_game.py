@@ -23,6 +23,11 @@ class BlockBlastGame(BaseGame):
     STATE_GAMEOVER = 'gameover'
 
     def __init__(self, high_score=0):
+        if not pygame.get_init():
+            pygame.init()
+        if not pygame.font.get_init():
+            pygame.font.init()
+
         self.surface = pygame.Surface((config.CANVAS_WIDTH, config.CANVAS_HEIGHT))
         self.font_big = pygame.font.SysFont('arial', 38, bold=True)
         self.font_med = pygame.font.SysFont('arial', 24, bold=True)
@@ -78,6 +83,9 @@ class BlockBlastGame(BaseGame):
         pinching = gesture_data.get('is_pinching', False)
         fist = gesture_data.get('is_fist', False)
         open_palm = gesture_data.get('is_open_palm', False)
+        action = gesture_data.get('action')
+        slot = gesture_data.get('slot')
+        move_cursor = gesture_data.get('move_cursor')
 
         if cursor_pos is not None:
             target_x = int(cursor_pos[0] * config.CANVAS_WIDTH)
@@ -87,15 +95,51 @@ class BlockBlastGame(BaseGame):
             self.cursor_px = int(0.75 * target_x + 0.25 * self.cursor_px)
             self.cursor_py = int(0.75 * target_y + 0.25 * self.cursor_py)
 
+        if move_cursor and isinstance(move_cursor, (list, tuple)) and len(move_cursor) >= 2:
+            self.cursor_px = max(0, min(config.CANVAS_WIDTH, self.cursor_px + int(move_cursor[0])))
+            self.cursor_py = max(0, min(config.CANVAS_HEIGHT, self.cursor_py + int(move_cursor[1])))
+            self.hand_detected = True
+
         self.was_pinching = self.is_pinching
         self.is_pinching = pinching
         self.is_fist = fist
         self.is_open_palm = open_palm
 
+        is_grabbing = self.is_pinching or self.is_fist
+
+        if self.state in (self.STATE_MENU, self.STATE_GAMEOVER):
+            if is_grabbing or action in ('start', 'restart') or slot is not None:
+                self.start()
+
         if self.state != self.STATE_PLAYING:
             return
 
-        is_grabbing = self.is_pinching or self.is_fist
+        # Direct slot picking (from keyboard 1, 2, 3 or UI button)
+        if slot is not None and 0 <= int(slot) < config.TRAY_SLOT_COUNT:
+            slot_idx = int(slot)
+            if self.held_piece is not None:
+                self.tray.return_piece(self.held_from_slot, self.held_piece)
+                self.held_piece = None
+                self.held_from_slot = None
+            piece = self.tray.take_piece(slot_idx)
+            if piece is not None:
+                self.held_piece = piece
+                self.held_from_slot = slot_idx
+                self.cursor_px = config.CANVAS_WIDTH // 2
+                self.cursor_py = config.BOARD_OFFSET_Y + (config.BLOCK_GRID_SIZE * config.BLOCK_CELL_PX) // 2
+                self.hint_message = f"Slot {slot_idx + 1} Grabbed! Move to Grid & Place"
+                self.hint_time = time.time()
+            return
+
+        # Cancel / return to tray action
+        if action in ('cancel', 'return_tray'):
+            if self.held_piece is not None:
+                self.tray.return_piece(self.held_from_slot, self.held_piece)
+                self.held_piece = None
+                self.held_from_slot = None
+                self.hint_message = "Returned to Tray"
+                self.hint_time = time.time()
+            return
 
         # 1. Grabbing piece from tray
         if self.held_piece is None:
@@ -111,14 +155,17 @@ class BlockBlastGame(BaseGame):
 
         # 2. Holding and putting piece
         elif self.held_piece is not None:
-            # Drop triggers when user opens palm OR releases pinch/fist
-            is_releasing = self.is_open_palm or (self.was_pinching and not self.is_pinching and not self.is_fist)
+            # Drop triggers when user opens palm OR releases pinch/fist OR explicit place action
+            is_releasing = (
+                self.is_open_palm or
+                (self.was_pinching and not self.is_pinching and not self.is_fist) or
+                action in ('place', 'drop')
+            )
 
             if is_releasing:
                 row, col = self._calculate_ghost_grid_pos()
 
                 # Check if hovering over tray to cancel
-                tray_slot = self.tray.get_slot_at_pos(self.cursor_px, self.cursor_py)
                 if self.cursor_py >= config.TRAY_OFFSET_Y - 20:
                     # Return safely to tray
                     self.tray.return_piece(self.held_from_slot, self.held_piece)
@@ -152,8 +199,11 @@ class BlockBlastGame(BaseGame):
                     if not self.tray.has_valid_move(self.board):
                         self.state = self.STATE_GAMEOVER
                 else:
-                    # Forgiving drop: do NOT lose the piece! Keep it attached so user can adjust
-                    self.hint_message = "Place on green empty cells or drop on tray to cancel"
+                    # Forgiving drop: return piece safely to its tray slot so user is never stuck
+                    self.tray.return_piece(self.held_from_slot, self.held_piece)
+                    self.held_piece = None
+                    self.held_from_slot = None
+                    self.hint_message = "Invalid Spot! Returned to Tray"
                     self.hint_time = time.time()
 
     def _calculate_ghost_grid_pos(self):
@@ -187,8 +237,9 @@ class BlockBlastGame(BaseGame):
 
         self.board.render(surface, ghost_piece=self.held_piece, ghost_row=ghost_r, ghost_col=ghost_c)
 
-        # 3. Tray slots & remaining pieces
-        self.tray.render(surface)
+        # 3. Tray slots & remaining pieces (highlight when hovered)
+        hovered_slot = self.tray.get_slot_at_pos(self.cursor_px, self.cursor_py) if self.held_piece is None else None
+        self.tray.render(surface, hovered_slot=hovered_slot)
 
         # 4. Held piece floating with hand cursor
         if self.held_piece is not None:
@@ -208,7 +259,7 @@ class BlockBlastGame(BaseGame):
         # 5. Visual notifications
         self._render_banners(surface)
 
-        # 6. Hand Cursor
+        # 6. Hand / Aim Cursor
         self._render_cursor(surface)
 
         # 7. Menu / GameOver overlays
@@ -220,27 +271,35 @@ class BlockBlastGame(BaseGame):
         return surface
 
     def _render_header(self, surface):
-        plate = pygame.Surface((config.CANVAS_WIDTH - 24, 76), pygame.SRCALPHA)
-        pygame.draw.rect(plate, (255, 255, 255), (0, 0, config.CANVAS_WIDTH - 24, 76), border_radius=14)
-        pygame.draw.rect(plate, (226, 232, 240), (0, 0, config.CANVAS_WIDTH - 24, 76), width=2, border_radius=14)
+        plate_w = config.CANVAS_WIDTH - 24 - (config.PIP_WIDTH + 14 if config.SHOW_CAMERA_PIP else 0)
+        plate = pygame.Surface((plate_w, 76), pygame.SRCALPHA)
+        pygame.draw.rect(plate, (255, 255, 255), (0, 0, plate_w, 76), border_radius=14)
+        pygame.draw.rect(plate, (226, 232, 240), (0, 0, plate_w, 76), width=2, border_radius=14)
         surface.blit(plate, (12, 10))
 
         title = self.font_med.render("BLOCK BLAST", True, (37, 99, 235))
-        surface.blit(title, (24, 18))
+        surface.blit(title, (22, 18))
 
         score_lbl = self.font_tiny.render("SCORE", True, (100, 116, 139))
         score_val = self.font_big.render(str(int(self.score)), True, (15, 23, 42))
-        surface.blit(score_lbl, (200, 16))
-        surface.blit(score_val, (200, 32))
+        surface.blit(score_lbl, (170, 16))
+        surface.blit(score_val, (170, 32))
 
         best_lbl = self.font_tiny.render("BEST", True, (100, 116, 139))
         best_val = self.font_big.render(str(int(self.high_score)), True, (245, 158, 11))
-        surface.blit(best_lbl, (300, 16))
-        surface.blit(best_val, (300, 32))
+        surface.blit(best_lbl, (245, 16))
+        surface.blit(best_val, (245, 32))
 
-        status_color = (16, 185, 129) if self.hand_detected else (239, 68, 68)
-        status_text = "🟢 Tracking OK" if self.hand_detected else "🔴 Hand Lost"
-        surface.blit(self.font_tiny.render(status_text, True, status_color), (24, 52))
+        if self.held_piece is not None:
+            status_color = (245, 158, 11)
+            status_text = "🤏 Piece Grabbed"
+        elif self.hand_detected:
+            status_color = (16, 185, 129)
+            status_text = "🟢 Tracking OK"
+        else:
+            status_color = (100, 116, 139)
+            status_text = "🖐 Move Hand / Mouse"
+        surface.blit(self.font_tiny.render(status_text, True, status_color), (22, 52))
 
     def _render_banners(self, surface):
         now = time.time()
@@ -255,9 +314,6 @@ class BlockBlastGame(BaseGame):
             surface.blit(hint, rect)
 
     def _render_cursor(self, surface):
-        if not self.hand_detected:
-            return
-
         is_active = self.is_pinching or self.is_fist
         radius = 14 if is_active else 18
         ring_color = (245, 158, 11) if is_active else (37, 99, 235)

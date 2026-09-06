@@ -91,6 +91,71 @@ class TestBlockBlast(unittest.TestCase):
         # 1x1 dot CAN fit
         self.assertTrue(self.board.can_piece_fit_anywhere(dot))
 
+    def test_tray_get_slot_at_pos_with_padding(self):
+        tray = TrayManager()
+        slot0_rect = tray.get_slot_rect(0)
+        # Inside slot 0
+        self.assertEqual(tray.get_slot_at_pos(slot0_rect.centerx, slot0_rect.centery), 0)
+        # Slightly outside but within padding (10px to the left)
+        self.assertEqual(tray.get_slot_at_pos(slot0_rect.left - 10, slot0_rect.centery), 0)
+        # Far outside
+        self.assertIsNone(tray.get_slot_at_pos(slot0_rect.left - 50, slot0_rect.centery))
+
+    def test_block_blast_game_slot_pick_and_place(self):
+        from block_game import BlockBlastGame
+        game = BlockBlastGame()
+        game.start()
+
+        # Slot 0 pick via slot action
+        game.apply_gesture({'slot': 0})
+        self.assertIsNotNone(game.held_piece)
+        self.assertEqual(game.held_from_slot, 0)
+        self.assertIsNone(game.tray.slots[0])
+
+        # Place held piece at (0, 0) on board
+        piece_cells = game.held_piece.cell_count
+        # Position cursor so ghost calculates row=0, col=0
+        piece_w = game.held_piece.cols * config.BLOCK_CELL_PX
+        piece_h = game.held_piece.rows * config.BLOCK_CELL_PX
+        game.cursor_px = config.BOARD_OFFSET_X + piece_w // 2
+        game.cursor_py = config.BOARD_OFFSET_Y + piece_h // 2 + 15
+
+        # Release / drop
+        game.apply_gesture({'is_open_palm': True, 'action': 'place'})
+        self.assertIsNone(game.held_piece)
+        self.assertEqual(game.score, piece_cells * config.SCORE_PER_PLACED_CELL)
+
+    def test_block_blast_game_forgiving_invalid_drop_returns_to_tray(self):
+        from block_game import BlockBlastGame
+        game = BlockBlastGame()
+        game.start()
+
+        # Slot 1 pick
+        game.apply_gesture({'slot': 1})
+        original_piece = game.held_piece
+        self.assertIsNotNone(original_piece)
+
+        # Position cursor at an invalid off-board location (e.g. y = 40)
+        game.cursor_px = 100
+        game.cursor_py = 40
+
+        # Drop on invalid position -> should safely return to tray slot 1!
+        game.apply_gesture({'is_open_palm': True, 'action': 'place'})
+        self.assertIsNone(game.held_piece)
+        self.assertEqual(game.tray.slots[1], original_piece)
+        self.assertIn("Returned to Tray", game.hint_message)
+
+    def test_block_blast_game_move_cursor(self):
+        from block_game import BlockBlastGame
+        game = BlockBlastGame()
+        game.start()
+
+        initial_x = game.cursor_px
+        initial_y = game.cursor_py
+        game.apply_gesture({'move_cursor': [46, -46]})
+        self.assertEqual(game.cursor_px, initial_x + 46)
+        self.assertEqual(game.cursor_py, initial_y - 46)
+
 
 if __name__ == '__main__':
     unittest.main()

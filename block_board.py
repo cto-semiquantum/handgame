@@ -181,23 +181,28 @@ class BlockBoard:
 
         # 3. Render ghost piece if actively hovered
         if ghost_piece is not None and ghost_row is not None and ghost_col is not None:
-            is_valid = self.can_place(ghost_piece, ghost_row, ghost_col)
-            alpha = 180 if is_valid else 90
+            overlaps_board = not (
+                ghost_row + ghost_piece.rows <= 0 or
+                ghost_row >= self.size or
+                ghost_col + ghost_piece.cols <= 0 or
+                ghost_col >= self.size
+            )
+            if overlaps_board:
+                is_valid = self.can_place(ghost_piece, ghost_row, ghost_col)
+                alpha = 180 if is_valid else 70
 
-            for r in range(ghost_piece.rows):
-                for c in range(ghost_piece.cols):
-                    if ghost_piece.shape[r][c] == 1:
-                        target_r = ghost_row + r
-                        target_c = ghost_col + c
-                        if 0 <= target_r < self.size and 0 <= target_c < self.size:
-                            cx, cy = self.get_cell_screen_coords(target_r, target_c)
-                            ghost_rect = pygame.Rect(cx + 2, cy + 2, cell_px - 4, cell_px - 4)
+                for r in range(ghost_piece.rows):
+                    for c in range(ghost_piece.cols):
+                        if ghost_piece.shape[r][c] == 1:
+                            target_r = ghost_row + r
+                            target_c = ghost_col + c
+                            if 0 <= target_r < self.size and 0 <= target_c < self.size:
+                                cx, cy = self.get_cell_screen_coords(target_r, target_c)
+                                if is_valid:
+                                    color = config.COLOR_GHOST_VALID
+                                else:
+                                    color = config.COLOR_GHOST_INVALID
 
-                            if is_valid:
-                                color = config.COLOR_GHOST_VALID
-                            else:
-                                color = config.COLOR_GHOST_INVALID
-
-                            ghost_surf = pygame.Surface((cell_px - 4, cell_px - 4), pygame.SRCALPHA)
-                            ghost_surf.fill((*color, alpha))
-                            surface.blit(ghost_surf, (cx + 2, cy + 2))
+                                ghost_surf = pygame.Surface((cell_px - 4, cell_px - 4), pygame.SRCALPHA)
+                                ghost_surf.fill((*color, alpha))
+                                surface.blit(ghost_surf, (cx + 2, cy + 2))

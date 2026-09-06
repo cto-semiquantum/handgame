@@ -72,6 +72,9 @@ _latest_gesture = {
     'in_grace_period': False,
     'is_calibrating': False,
     'pip_frame': None,
+    'slot': None,
+    'action': None,
+    'move_cursor': None,
 }
 
 _frame_lock = threading.Lock()
@@ -134,6 +137,9 @@ def _game_render_worker():
                 # Clear one-shot pulse triggers
                 _latest_gesture['jump_triggered'] = False
                 _latest_gesture['stop_triggered'] = False
+                _latest_gesture['action'] = None
+                _latest_gesture['slot'] = None
+                _latest_gesture['move_cursor'] = None
 
             # If the browser hasn't sent a webcam frame recently (tab backgrounded,
             # permission revoked, camera busy, page just loaded, etc.) treat the
@@ -235,6 +241,7 @@ def api_stats():
         'distance_m': state_info['details'].get('distance_m', 0),
         'coins': state_info['details'].get('coins', 0),
         'combo_streak': state_info['details'].get('combo_streak', 0),
+        'held_piece': state_info['details'].get('held_piece'),
         'gesture': g.get('gesture', 'run'),
         'lane': g.get('lane', 1),
         'cursor_pos': g.get('cursor_pos'),
@@ -363,6 +370,9 @@ def api_action():
     is_open_palm = data.get('is_open_palm')
     hand_detected = data.get('hand_detected')
 
+    slot = data.get('slot')
+    move_cursor = data.get('move_cursor')
+
     with _gesture_lock:
         if hand_detected is not None:
             _latest_gesture['hand_detected'] = bool(hand_detected)
@@ -372,6 +382,12 @@ def api_action():
         if cursor is not None and isinstance(cursor, (list, tuple)) and len(cursor) >= 2:
             _latest_gesture['cursor_pos'] = (max(0.0, min(1.0, float(cursor[0]))),
                                              max(0.0, min(1.0, float(cursor[1]))))
+            _latest_gesture['hand_detected'] = True
+        if slot is not None:
+            _latest_gesture['slot'] = int(slot)
+            _latest_gesture['hand_detected'] = True
+        if move_cursor is not None:
+            _latest_gesture['move_cursor'] = move_cursor
             _latest_gesture['hand_detected'] = True
         if is_pinching is not None:
             _latest_gesture['is_pinching'] = bool(is_pinching)
@@ -388,6 +404,8 @@ def api_action():
             _latest_gesture['gesture'] = 'stop'
         elif action == 'run':
             _latest_gesture['gesture'] = 'run'
+        elif action in ('drop', 'place', 'cancel', 'return_tray'):
+            _latest_gesture['action'] = action
         elif action == 'left':
             _latest_gesture['lane'] = 0
             _latest_gesture['hand_detected'] = True

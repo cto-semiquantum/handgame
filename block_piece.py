@@ -235,12 +235,13 @@ class TrayManager:
         y = config.TRAY_OFFSET_Y
         return pygame.Rect(x, y, config.TRAY_SLOT_WIDTH, config.TRAY_SLOT_HEIGHT)
 
-    def get_slot_at_pos(self, px, py):
-        """Returns slot index (0, 1, 2) if (px, py) is inside a populated slot, else None."""
+    def get_slot_at_pos(self, px, py, padding=18):
+        """Returns slot index (0, 1, 2) if (px, py) is inside or close to a populated slot, else None."""
         for i in range(config.TRAY_SLOT_COUNT):
             if self.slots[i] is not None:
                 rect = self.get_slot_rect(i)
-                if rect.collidepoint(px, py):
+                inflated = rect.inflate(padding * 2, padding * 2)
+                if inflated.collidepoint(px, py):
                     return i
         return None
 
