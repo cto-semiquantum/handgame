@@ -1,6 +1,8 @@
-# Gesture-Controlled Web Game Platform (v2)
+# Gesture-Controlled Web Game Platform (v3.1 Pro)
 
-A server-side rendered, multi-game platform powered by **Pygame**, **OpenCV**, and **MediaPipe Hands**, served to the browser as a live MJPEG stream with **zero JavaScript**.
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/cto-semiquantum/handgame)
+
+A server-side rendered, multi-game platform powered by **Pygame**, **OpenCV**, and **MediaPipe Hands**, served to the browser as a live MJPEG stream with an ultra-responsive cyber-arcade UI.
 
 Features two distinct game modes controlled exclusively by natural hand gestures:
 1. **🏃 Endless Runner**: Fast-paced reflex runner with lane steering, jumping, sliding, and skateboard invincibility power-ups.
