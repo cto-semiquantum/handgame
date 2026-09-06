@@ -75,7 +75,10 @@ _latest_gesture = {
 }
 
 _frame_lock = threading.Lock()
-_latest_jpeg = None
+try:
+    _latest_jpeg = game.get_jpeg_bytes()
+except Exception:
+    _latest_jpeg = None
 
 _last_frame_received_at = 0.0
 _CAMERA_TIMEOUT_S = 2.0  # if no client frame arrives for this long, treat hand as lost
@@ -123,30 +126,33 @@ def _game_render_worker():
     target_dt = 1.0 / config.FPS
 
     while _running:
-        start_t = time.time()
+        try:
+            start_t = time.time()
 
-        with _gesture_lock:
-            current_gesture = _latest_gesture.copy()
+            with _gesture_lock:
+                current_gesture = _latest_gesture.copy()
 
-        # If the browser hasn't sent a webcam frame recently (tab backgrounded,
-        # permission revoked, camera busy, page just loaded, etc.) treat the
-        # hand as lost instead of freezing on stale data forever.
-        if time.time() - _last_frame_received_at > _CAMERA_TIMEOUT_S:
-            current_gesture['hand_detected'] = False
-            current_gesture['gesture'] = 'none'
-            current_gesture['in_grace_period'] = False
+            # If the browser hasn't sent a webcam frame recently (tab backgrounded,
+            # permission revoked, camera busy, page just loaded, etc.) treat the
+            # hand as lost instead of freezing on stale data forever.
+            if time.time() - _last_frame_received_at > _CAMERA_TIMEOUT_S:
+                current_gesture['hand_detected'] = False
+                current_gesture['gesture'] = 'none'
+                current_gesture['in_grace_period'] = False
 
-        game.apply_gesture(current_gesture)
-        game.update(target_dt)
+            game.apply_gesture(current_gesture)
+            game.update(target_dt)
 
-        jpeg_bytes = game.get_jpeg_bytes()
-        if jpeg_bytes is not None:
-            with _frame_lock:
-                _latest_jpeg = jpeg_bytes
+            jpeg_bytes = game.get_jpeg_bytes()
+            if jpeg_bytes is not None:
+                with _frame_lock:
+                    _latest_jpeg = jpeg_bytes
 
-        elapsed = time.time() - start_t
-        sleep_time = max(0.001, target_dt - elapsed)
-        time.sleep(sleep_time)
+            elapsed = time.time() - start_t
+            sleep_time = max(0.001, target_dt - elapsed)
+            time.sleep(sleep_time)
+        except Exception:
+            time.sleep(0.02)
 
 
 def _start_background_threads():
@@ -174,7 +180,9 @@ def _mjpeg_generator():
         if frame is not None:
             yield (
                 b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n'
+                b'Content-Type: image/jpeg\r\n'
+                b'Content-Length: ' + str(len(frame)).encode('ascii') + b'\r\n\r\n'
+                + frame + b'\r\n'
             )
         time.sleep(frame_interval)
 
@@ -230,10 +238,31 @@ def api_stats():
 
 @app.route('/video_feed')
 def video_feed():
-    return Response(
+    response = Response(
         _mjpeg_generator(),
         mimetype='multipart/x-mixed-replace; boundary=frame',
     )
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    response.headers['X-Accel-Buffering'] = 'no'
+    return response
+
+
+@app.route('/current_frame.jpg')
+def current_frame():
+    with _frame_lock:
+        frame = _latest_jpeg
+    if frame is None:
+        frame = game.get_jpeg_bytes()
+    if frame is None:
+        return ('', 204)
+    response = Response(frame, mimetype='image/jpeg')
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    response.headers['X-Accel-Buffering'] = 'no'
+    return response
 
 
 @app.route('/process_frame', methods=['POST'])

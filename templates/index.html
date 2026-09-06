@@ -274,7 +274,8 @@
             overflow: hidden;
         }
 
-        .screen-canvas-wrap img {
+        .screen-canvas-wrap img,
+        .screen-canvas-wrap canvas {
             width: 100%;
             height: 100%;
             object-fit: contain;
@@ -730,11 +731,12 @@
                         <span class="feed-dot"></span>
                         <span id="screen-mode-title">{{ 'Road Runner • Highway 1' if mode == 'runner' else 'Block Blast • Grid 8x8' }}</span>
                     </div>
-                    <div>Headless Stream • 480x720</div>
+                    <div>Canvas 480x720</div>
                 </div>
 
                 <div class="screen-canvas-wrap">
                     <img id="game-stream" src="{{ url_for('video_feed') }}" alt="Gesturo Video Stream">
+                    <canvas id="game-canvas" width="480" height="720" style="display:none;"></canvas>
                 </div>
 
                 <!-- Real-Time Gesture Action Banner -->
@@ -930,7 +932,6 @@
             // Ultra-responsive upload rate: 33ms (~30 FPS)
             var SEND_INTERVAL_MS = 33;
             var sending = false;
-            var camActive = false;
 
             function setCamStatus(text, ok) {
                 var pill = document.getElementById('cam-status-pill');
@@ -967,7 +968,6 @@
                     audio: false,
                 }).then(function (stream) {
                     video.srcObject = stream;
-                    camActive = true;
                     setCamStatus('Webcam Stream Active (30 FPS)', true);
                     setInterval(sendFrame, SEND_INTERVAL_MS);
                 }).catch(function (err) {
@@ -976,6 +976,51 @@
             }
 
             startCapture();
+        })();
+
+        // Dual-Stream Fallback Engine (Guarantees video display even behind restrictive proxies)
+        (function() {
+            var img = document.getElementById('game-stream');
+            var canvas = document.getElementById('game-canvas');
+            var ctx = canvas.getContext('2d');
+            var activeMode = 'mjpeg';
+            var pollerInterval = null;
+
+            function activatePoller() {
+                if (activeMode === 'poller') return;
+                activeMode = 'poller';
+                img.style.display = 'none';
+                canvas.style.display = 'block';
+
+                var nextImg = new Image();
+                var fetching = false;
+
+                function getNext() {
+                    if (fetching) return;
+                    fetching = true;
+                    nextImg.onload = function() {
+                        ctx.drawImage(nextImg, 0, 0, canvas.width, canvas.height);
+                        fetching = false;
+                    };
+                    nextImg.onerror = function() {
+                        fetching = false;
+                    };
+                    nextImg.src = '/current_frame.jpg?t=' + Date.now();
+                }
+
+                pollerInterval = setInterval(getNext, 33);
+            }
+
+            // If MJPEG hasn't displayed a real frame in 1.2s or errors out, smoothly switch to canvas
+            setTimeout(function() {
+                if (!img.complete || img.naturalWidth === 0) {
+                    activatePoller();
+                }
+            }, 1200);
+
+            img.onerror = function() {
+                activatePoller();
+            };
         })();
 
         // Toast Helper
